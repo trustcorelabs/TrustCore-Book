@@ -1,4 +1,13 @@
-import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  stat,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readLocalOutbox, writeLocalOutbox } from "@/server/local-outbox";
 import type { LocalOutboxTarget } from "@/server/local-outbox-target";
@@ -24,7 +33,9 @@ afterEach(async () => {
 
 describe("encrypted local outbox storage", () => {
   it("stores a verification link encrypted and only returns active messages", async () => {
-    directory = await mkdtemp("/private/tmp/trustcore-outbox-test-");
+    directory = await mkdtemp(
+      join(await realpath(tmpdir()), "trustcore-outbox-test-"),
+    );
     vi.stubEnv("LOCAL_OUTBOX_DIR", directory);
     const message = {
       kind: "VERIFY_EMAIL" as const,
@@ -46,7 +57,9 @@ describe("encrypted local outbox storage", () => {
   });
 
   it("cannot decrypt another branch's outbox entries", async () => {
-    directory = await mkdtemp("/private/tmp/trustcore-outbox-test-");
+    directory = await mkdtemp(
+      join(await realpath(tmpdir()), "trustcore-outbox-test-"),
+    );
     vi.stubEnv("LOCAL_OUTBOX_DIR", directory);
     await writeLocalOutbox(target, {
       kind: "RESET_PASSWORD",
