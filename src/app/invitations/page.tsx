@@ -1,10 +1,13 @@
 import { InvitationResponse } from "@/features/membership/components/invitation-response";
-
+import { AuthLayout } from "@/components/auth-layout";
 export default function Page() {
   return (
-    <main className="mx-auto max-w-lg px-6 py-12">
-      <h1 className="text-2xl font-semibold">Business invitation</h1>
+    <AuthLayout
+      compact
+      title="You’re invited"
+      description="A new workspace could be waiting for you."
+    >
       <InvitationResponse />
-    </main>
+    </AuthLayout>
   );
 }

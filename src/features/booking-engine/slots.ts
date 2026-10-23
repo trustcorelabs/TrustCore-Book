@@ -44,17 +44,24 @@ export function resolveBusinessLocalTime(
   return matches.length === 1 ? matches[0] : null;
 }
 
+const formatters = new Map<string, Intl.DateTimeFormat>();
 function localParts(instant: Date, timezone: string) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    hourCycle: "h23",
-    weekday: "short",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).formatToParts(instant);
+  let formatter = formatters.get(timezone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hourCycle: "h23",
+      weekday: "short",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    if (formatters.size >= 128) formatters.clear();
+    formatters.set(timezone, formatter);
+  }
+  const parts = formatter.formatToParts(instant);
   const value = (type: string) =>
     parts.find((part) => part.type === type)?.value ?? "";
   return {
@@ -118,20 +125,39 @@ export function computeSlots(input: {
     exceptions,
     appointments,
   } = input;
+  if (
+    !Number.isInteger(durationMinutes) ||
+    durationMinutes < 5 ||
+    durationMinutes > 720 ||
+    !Number.isFinite(from.getTime()) ||
+    !Number.isFinite(to.getTime())
+  )
+    return [];
   const first =
     Math.ceil(
       Math.max(
         from.getTime(),
         (input.now ?? new Date()).getTime() + 60 * 60_000,
-      ) / 1_800_000,
-    ) * 1_800_000;
+      ) / 60_000,
+    ) * 60_000;
   const slots: TimeBlock[] = [];
   for (
     let time = first;
     time + durationMinutes * 60_000 <= to.getTime();
-    time += 1_800_000
+    time += 60_000
   ) {
     const startsAt = new Date(time);
+    const local = localParts(startsAt, timezone);
+    // Anchor the 30-minute cadence to each working interval, including 09:15 starts.
+    if (
+      !rules.some(
+        (rule) =>
+          rule.weekday === local.weekday &&
+          local.minute >= rule.startMinute &&
+          (local.minute - rule.startMinute) % 30 === 0,
+      )
+    )
+      continue;
     const endsAt = new Date(time + durationMinutes * 60_000);
     if (
       isBookableInterval({

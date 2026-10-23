@@ -370,10 +370,19 @@ export async function createBusinessService(
     await rateLimit(`onboard:${user.id}`, 5);
     const business = await createOwnedBusiness(user.id, result.data);
     id = business.id;
-  } catch {
+  } catch (error) {
+    if (error instanceof RateLimitExceededError)
+      return { error: "Too many attempts. Please try again later." };
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    )
+      return {
+        error:
+          "This booking address is already taken. Go back and choose a different booking address.",
+      };
     return {
-      error:
-        "Unable to create this business. The booking address may already be taken.",
+      error: "Unable to create this business. Please try again later.",
     };
   }
   return { businessId: id };
@@ -487,7 +496,10 @@ export async function changeAppointmentStatusService(
   if (
     typeof id !== "string" ||
     !/^[a-z0-9]{15,40}$/.test(id) ||
-    (status !== "CANCELLED" && status !== "COMPLETED" && status !== "NO_SHOW")
+    (status !== "CONFIRMED" &&
+      status !== "CANCELLED" &&
+      status !== "COMPLETED" &&
+      status !== "NO_SHOW")
   )
     return { error: "Invalid appointment change." };
   try {

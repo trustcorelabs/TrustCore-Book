@@ -1,4 +1,6 @@
 import { hash } from "bcryptjs";
+import { Prisma } from "@/generated/prisma/client";
+import { RateLimitExceededError } from "@/server/rate-limit";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -187,6 +189,37 @@ describe("own-account services (authorization and database mocked)", () => {
       timezone: "Asia/Colombo",
     });
   });
+
+  it.each([
+    [
+      new Prisma.PrismaClientKnownRequestError("Duplicate", {
+        code: "P2002",
+        clientVersion: "test",
+      }),
+      "This booking address is already taken. Go back and choose a different booking address.",
+    ],
+    [
+      new RateLimitExceededError(),
+      "Too many attempts. Please try again later.",
+    ],
+    [
+      new Error("Database unavailable"),
+      "Unable to create this business. Please try again later.",
+    ],
+  ])(
+    "explains onboarding failures without exposing internals: %s",
+    async (error, message) => {
+      mocks.createOwnedBusiness.mockRejectedValue(error);
+      expect(
+        await createBusinessService({
+          name: "Book Studio",
+          slug: "book-studio",
+          country: "LK",
+          timezone: "Asia/Colombo",
+        }),
+      ).toEqual({ error: message });
+    },
+  );
 
   it("blocks newly unverified identities from business onboarding", async () => {
     mocks.requireUser.mockResolvedValue({

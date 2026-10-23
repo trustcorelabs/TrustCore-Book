@@ -10,7 +10,7 @@
     "dev": "next dev",
     "setup:local": "node scripts/setup-local.mjs",
     "dev:check": "node scripts/check-development-target.mjs",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && next build --webpack",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
@@ -30,7 +30,8 @@
     "test:e2e:list": "playwright test --list",
     "test:integration": "vitest run tests/database.test.ts",
     "check:boundaries": "node scripts/check-boundaries.mjs",
-    "verify": "pnpm check:boundaries && pnpm db:validate && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "verify": "pnpm check:boundaries && pnpm db:validate && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "test:local": "node scripts/test-local-booking.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.0",

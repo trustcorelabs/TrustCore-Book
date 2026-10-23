@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "./ui/button";
+import { PasswordInput } from "./ui/password-input";
 import { Input } from "./ui/input";
 import {
   forgotPassword,
@@ -72,10 +73,9 @@ export function AccountFlowForm({ mode }: { mode: Mode }) {
           <label htmlFor="new-password" className="text-sm">
             New password
           </label>
-          <Input
+          <PasswordInput
             id="new-password"
             name="password"
-            type="password"
             autoComplete="new-password"
             required
             minLength={12}

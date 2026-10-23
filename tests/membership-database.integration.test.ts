@@ -3,7 +3,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { issueAccountToken } from "@/server/account-tokens";
-import { approvedDevelopmentDatabase } from "./development-database-target";
+import { approvedTestDatabase } from "./development-database-target";
 
 const holder = vi.hoisted(() => ({ client: null as PrismaClient | null }));
 vi.mock("@/lib/db", () => ({
@@ -27,20 +27,7 @@ const url = process.env.A2_TEST_DATABASE_URL;
 const approved =
   process.env.A2_TEST_DATABASE_VERIFIED === "YES" &&
   !!url &&
-  (() => {
-    try {
-      const target = new URL(url);
-      return (
-        ["postgres:", "postgresql:"].includes(target.protocol) &&
-        ((target.hostname ===
-          "ep-wild-cloud-b52apabm.c-7.us-east-2.aws.neon.tech" &&
-          target.pathname === "/trustcore_book_a1_test") ||
-          approvedDevelopmentDatabase(url))
-      );
-    } catch {
-      return false;
-    }
-  })();
+  approvedTestDatabase(url);
 const suite = approved ? describe : describe.skip;
 const suffix = randomUUID();
 const ids = {

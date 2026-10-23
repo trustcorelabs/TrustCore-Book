@@ -11,13 +11,13 @@ export function ThemeSelect() {
     () => false,
   );
   return (
-    <div className="w-28 sm:w-36">
+    <div className="w-32 shrink-0 sm:w-36">
       <label className="sr-only" htmlFor={id}>
         Color theme
       </label>
       <select
         id={id}
-        className="input h-9 text-xs"
+        className="input h-10 text-xs"
         aria-label="Color theme"
         value={mounted ? (theme ?? "system") : "system"}
         disabled={!mounted}

@@ -13,3 +13,6 @@ playwright-report/
 test-results/
 blob-report/
 *.log
+.vercel
+
+.next-*/

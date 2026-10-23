@@ -29,3 +29,64 @@ export function approvedDevelopmentDatabase(
     return false;
   }
 }
+
+// Set only by test:local after checking the managed cluster's data directory and schema.
+export function approvedLocalDatabase(
+  url: string | undefined,
+  env: Record<string, string | undefined> = process.env,
+) {
+  if (
+    !url ||
+    env.LOCAL_TEST_DATABASE_VERIFIED !== "YES" ||
+    url !== env.LOCAL_TEST_DATABASE_URL
+  )
+    return false;
+  try {
+    const target = new URL(url);
+    return (
+      target.protocol === "postgresql:" &&
+      target.hostname === "127.0.0.1" &&
+      target.port === "55432" &&
+      target.pathname === "/trustcore_book_local" &&
+      target.username === "trustcore_local"
+    );
+  } catch {
+    return false;
+  }
+}
+// The checked-in GitHub Actions workflow creates this exact loopback-only service.
+export function approvedCiDatabase(
+  url: string | undefined,
+  env: Record<string, string | undefined> = process.env,
+) {
+  if (
+    !url ||
+    env.CI !== "true" ||
+    env.GITHUB_ACTIONS !== "true" ||
+    url !== env.DIRECT_URL ||
+    url !== env.TEST_DATABASE_URL
+  )
+    return false;
+  try {
+    const target = new URL(url);
+    return (
+      target.protocol === "postgresql:" &&
+      target.hostname === "localhost" &&
+      target.port === "5432" &&
+      target.pathname === "/trustcore_ci_test" &&
+      target.username === "trustcore_ci" &&
+      !target.password &&
+      !target.search &&
+      !target.hash
+    );
+  } catch {
+    return false;
+  }
+}
+export function approvedTestDatabase(url: string | undefined) {
+  return (
+    approvedDevelopmentDatabase(url) ||
+    approvedLocalDatabase(url) ||
+    approvedCiDatabase(url)
+  );
+}

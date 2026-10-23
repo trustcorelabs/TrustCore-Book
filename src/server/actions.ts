@@ -83,7 +83,7 @@ export async function saveStaffSchedule(businessId: string, input: unknown) {
 export async function changeAppointmentStatus(
   businessId: string,
   id: string,
-  status: "CANCELLED" | "COMPLETED" | "NO_SHOW",
+  status: "CONFIRMED" | "CANCELLED" | "COMPLETED" | "NO_SHOW",
 ) {
   const result = await changeAppointmentStatusService(businessId, id, status);
   if (result.success) revalidatePath(`/app/${businessId}`, "layout");

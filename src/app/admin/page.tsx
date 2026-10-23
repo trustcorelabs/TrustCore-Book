@@ -7,21 +7,23 @@ export default async function Page() {
   const { businessCount, userCount, businesses } = await getPlatformOverview();
   return (
     <>
-      <header className="border-b border-border bg-card p-6">
-        <Brand />
+      <header className="border-b border-border bg-card py-6">
+        <div className="mx-auto max-w-6xl px-5">
+          <Brand />
+        </div>
       </header>
       <main id="main" className="mx-auto max-w-6xl px-5 py-10">
         <p className="eyebrow mb-3">Platform administration</p>
-        <h1 className="text-3xl font-semibold">Platform overview</h1>
+        <h1 className="text-3xl font-bold">Platform overview</h1>
         <p className="mb-8 mt-2 text-sm text-muted-foreground">
           Restricted to explicitly provisioned platform administrators.
         </p>
         <div className="mb-8 grid gap-5 sm:grid-cols-2">
-          <Card>
+          <Card className="color-panel">
             <p className="text-sm text-muted-foreground">Businesses</p>
             <p className="mt-3 text-3xl font-semibold">{businessCount}</p>
           </Card>
-          <Card>
+          <Card className="color-panel">
             <p className="text-sm text-muted-foreground">Accounts</p>
             <p className="mt-3 text-3xl font-semibold">{userCount}</p>
           </Card>

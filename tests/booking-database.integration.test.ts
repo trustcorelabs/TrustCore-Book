@@ -2,7 +2,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { approvedDevelopmentDatabase } from "./development-database-target";
+import {
+  createStaffTimeOff,
+  replaceStaffSchedule,
+  transitionAppointment,
+} from "@/server/repositories/workspace";
+import type { TenantContext } from "@/server/authorization";
+import { approvedTestDatabase } from "./development-database-target";
 
 const holder = vi.hoisted(() => ({ client: null as PrismaClient | null }));
 vi.mock("@/lib/db", () => ({
@@ -35,25 +41,18 @@ const url = process.env.BOOKING_TEST_DATABASE_URL;
 const approved =
   process.env.BOOKING_TEST_DATABASE_VERIFIED === "YES" &&
   !!url &&
-  (() => {
-    try {
-      const target = new URL(url);
-      return (
-        ["postgres:", "postgresql:"].includes(target.protocol) &&
-        ((target.hostname ===
-          "ep-wild-cloud-b52apabm.c-7.us-east-2.aws.neon.tech" &&
-          target.pathname === "/trustcore_book_a1_test") ||
-          approvedDevelopmentDatabase(url))
-      );
-    } catch {
-      return false;
-    }
-  })();
+  approvedTestDatabase(url);
 const suite = approved ? describe : describe.skip;
 const suffix = randomUUID();
 const slug = `booking-test-${suffix}`;
 let businessId = "";
 let serviceId = "";
+let staffId = "";
+let ownerId = "";
+let otherBusinessId = "";
+let otherServiceId = "";
+const scope = () =>
+  ({ businessId, actorId: ownerId, role: "OWNER" }) as TenantContext;
 let selectedSlot: { id: string; startsAt: string };
 
 suite("booking persistence on externally verified disposable Neon only", () => {
@@ -88,6 +87,36 @@ suite("booking persistence on externally verified disposable Neon only", () => {
       },
     });
     businessId = business.id;
+    const owner = await holder.client.user.create({
+      data: {
+        name: "Integration Owner",
+        email: `owner-${suffix}@example.test`,
+        passwordHash: "test-only-hash",
+      },
+    });
+    ownerId = owner.id;
+    await holder.client.businessMember.create({
+      data: { businessId, userId: ownerId, role: "OWNER" },
+    });
+    const other = await holder.client.business.create({
+      data: {
+        name: "Other tenant",
+        slug: `other-${suffix}`,
+        country: "LK",
+        currency: "LKR",
+        timezone: "Asia/Colombo",
+      },
+    });
+    otherBusinessId = other.id;
+    const foreignService = await holder.client.service.create({
+      data: {
+        businessId: other.id,
+        name: "Foreign",
+        durationMinutes: 30,
+        price: "1",
+      },
+    });
+    otherServiceId = foreignService.id;
     const service = await holder.client.service.create({
       data: {
         businessId,
@@ -100,6 +129,7 @@ suite("booking persistence on externally verified disposable Neon only", () => {
     const staff = await holder.client.staff.create({
       data: { businessId, name: "Test staff" },
     });
+    staffId = staff.id;
     await holder.client.staffService.create({
       data: { businessId, serviceId, staffId: staff.id },
     });
@@ -136,6 +166,9 @@ suite("booking persistence on externally verified disposable Neon only", () => {
         await holder.client.auditLog.deleteMany({ where: { businessId } });
         await holder.client.business.deleteMany({ where: { id: businessId } });
       }
+      if (otherBusinessId)
+        await holder.client.business.delete({ where: { id: otherBusinessId } });
+      if (ownerId) await holder.client.user.delete({ where: { id: ownerId } });
     } finally {
       await holder.client.$disconnect();
       holder.client = null;
@@ -197,6 +230,9 @@ suite("booking persistence on externally verified disposable Neon only", () => {
     ]);
     expect(attempts.filter((result) => result.success)).toHaveLength(1);
     expect(attempts.filter((result) => result.error)).toHaveLength(1);
+    expect(attempts.find((result) => result.error)?.error).toMatch(
+      /no longer available/,
+    );
   });
 
   it("returns one booking for concurrent identical idempotency keys", async () => {
@@ -236,5 +272,218 @@ suite("booking persistence on externally verified disposable Neon only", () => {
         where: { businessId, idempotencyKey },
       }),
     ).toBe(1);
+  });
+  async function freshSlot(hours = 16) {
+    const from = new Date(Date.parse(selectedSlot.startsAt) + hours * 3600000);
+    const result = await getPublicSlots({
+      slug,
+      serviceId,
+      from: from.toISOString(),
+      to: new Date(from.getTime() + 4 * 3600000).toISOString(),
+    });
+    if (!result.slots?.length) throw new Error("Fixture has no fresh slot");
+    return result.slots[0]!;
+  }
+  function request(slot: { id: string; startsAt: string }) {
+    return {
+      slug,
+      serviceId,
+      slotId: slot.id,
+      startsAt: slot.startsAt,
+      idempotencyKey: randomUUID(),
+      name: "Isolation Customer",
+      email: `isolation-${suffix}@example.test`,
+      phone: "",
+    };
+  }
+  it("rejects cross-tenant services and forged slot tokens without creating customers", async () => {
+    const slot = await freshSlot();
+    const before = await holder.client!.customer.count({
+      where: { businessId },
+    });
+    expect(
+      (
+        await getPublicSlots({
+          slug,
+          serviceId: otherServiceId,
+          from: slot.startsAt,
+          to: new Date(Date.parse(slot.startsAt) + 3600000).toISOString(),
+        })
+      ).error,
+    ).toBe("Service is unavailable.");
+    expect(
+      (
+        await createPublicBooking({
+          ...request(slot),
+          serviceId: otherServiceId,
+        })
+      ).error,
+    ).toMatch(/no longer available/);
+    expect(
+      (await createPublicBooking({ ...request(slot), slotId: "0".repeat(64) }))
+        .error,
+    ).toMatch(/no longer available/);
+    expect(await holder.client!.customer.count({ where: { businessId } })).toBe(
+      before,
+    );
+  });
+  it("rechecks time off at confirmation and rejects staff mutations from another tenant", async () => {
+    const slot = await freshSlot();
+    await expect(
+      createStaffTimeOff(
+        { ...scope(), businessId: otherBusinessId },
+        staffId,
+        new Date(slot.startsAt),
+        new Date(slot.endsAt),
+      ),
+    ).rejects.toThrow();
+    await createStaffTimeOff(
+      scope(),
+      staffId,
+      new Date(slot.startsAt),
+      new Date(slot.endsAt),
+    );
+    expect((await createPublicBooking(request(slot))).error).toMatch(
+      /no longer available/,
+    );
+    const result = await getPublicSlots({
+      slug,
+      serviceId,
+      from: slot.startsAt,
+      to: new Date(Date.parse(slot.startsAt) + 3600000).toISOString(),
+    });
+    expect(result.slots?.some((item) => item.id === slot.id)).toBe(false);
+  });
+  it("rechecks service/staff active state and assignments for previously offered slots", async () => {
+    const slot = await freshSlot(24);
+    await holder.client!.service.update({
+      where: { id: serviceId },
+      data: { active: false },
+    });
+    expect((await createPublicBooking(request(slot))).error).toMatch(
+      /no longer available/,
+    );
+    await holder.client!.service.update({
+      where: { id: serviceId },
+      data: { active: true },
+    });
+    await holder.client!.staff.update({
+      where: { id: staffId },
+      data: { active: false },
+    });
+    expect((await createPublicBooking(request(slot))).error).toMatch(
+      /no longer available/,
+    );
+    await holder.client!.staff.update({
+      where: { id: staffId },
+      data: { active: true },
+    });
+    await replaceStaffSchedule(scope(), { staffId, serviceIds: [], rules: [] });
+    expect((await createPublicBooking(request(slot))).error).toMatch(
+      /no longer available/,
+    );
+    await replaceStaffSchedule(scope(), {
+      staffId,
+      serviceIds: [serviceId],
+      rules: Array.from({ length: 7 }, (_, weekday) => ({
+        weekday,
+        startMinute: 0,
+        endMinute: 1440,
+      })),
+    });
+  });
+  it("stores server prices, blocks conflicting time off, isolates status changes and releases cancellations", async () => {
+    const slot = await freshSlot(30);
+    const result = await createPublicBooking({
+      ...request(slot),
+      price: "0",
+      businessId: otherBusinessId,
+    });
+    expect(result.success).toBe("Booking confirmed.");
+    const appointment = await holder.client!.appointment.findUniqueOrThrow({
+      where: { id: result.bookingId },
+    });
+    expect(appointment.price.toString()).toBe("25");
+    expect(appointment.businessId).toBe(businessId);
+    await expect(
+      createStaffTimeOff(
+        scope(),
+        staffId,
+        appointment.startsAt,
+        appointment.endsAt,
+      ),
+    ).rejects.toThrow(/conflicts/);
+    await expect(
+      transitionAppointment(
+        { ...scope(), businessId: otherBusinessId },
+        appointment.id,
+        "CANCELLED",
+      ),
+    ).rejects.toThrow();
+    await transitionAppointment(scope(), appointment.id, "CANCELLED");
+    const slots = await getPublicSlots({
+      slug,
+      serviceId,
+      from: slot.startsAt,
+      to: new Date(Date.parse(slot.startsAt) + 3600000).toISOString(),
+    });
+    expect(slots.slots?.some((item) => item.id === slot.id)).toBe(true);
+    await expect(
+      transitionAppointment(scope(), appointment.id, "COMPLETED"),
+    ).rejects.toThrow(/already closed/);
+  });
+  it("confirms a pending appointment and retains completed/no-show intervals as occupied", async () => {
+    for (const [hours, status] of [
+      [36, "COMPLETED"],
+      [40, "NO_SHOW"],
+    ] as const) {
+      const slot = await freshSlot(hours);
+      const result = await createPublicBooking(request(slot));
+      expect(result.success).toBe("Booking confirmed.");
+      await holder.client!.appointment.update({
+        where: { id: result.bookingId },
+        data: { status: "PENDING" },
+      });
+      await transitionAppointment(scope(), result.bookingId!, "CONFIRMED");
+      await transitionAppointment(scope(), result.bookingId!, status);
+      const slots = await getPublicSlots({
+        slug,
+        serviceId,
+        from: slot.startsAt,
+        to: new Date(Date.parse(slot.startsAt) + 3600000).toISOString(),
+      });
+      expect(slots.slots?.some((item) => item.id === slot.id)).toBe(false);
+    }
+  });
+  it("rolls back customers, appointments and replay records if the final audit write fails", async () => {
+    const slot = await freshSlot(44);
+    const original = holder.client!;
+    const before = await Promise.all([
+      original.customer.count({ where: { businessId } }),
+      original.appointment.count({ where: { businessId } }),
+      original.bookingRequest.count({ where: { businessId } }),
+    ]);
+    holder.client = original.$extends({
+      query: {
+        auditLog: {
+          async create() {
+            throw new Error("Injected final write failure");
+          },
+        },
+      },
+    }) as unknown as PrismaClient;
+    try {
+      expect((await createPublicBooking(request(slot))).error).toMatch(
+        /temporarily unavailable/,
+      );
+    } finally {
+      holder.client = original;
+    }
+    const after = await Promise.all([
+      original.customer.count({ where: { businessId } }),
+      original.appointment.count({ where: { businessId } }),
+      original.bookingRequest.count({ where: { businessId } }),
+    ]);
+    expect(after).toEqual(before);
   });
 });

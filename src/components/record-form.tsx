@@ -1,4 +1,5 @@
 "use client";
+import { Plus, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createRecord } from "@/server/actions";
@@ -39,14 +40,24 @@ export function RecordForm({
     }
   }
   return (
-    <details className="mb-7 rounded-xl border border-border bg-card p-5">
-      <summary className="cursor-pointer text-sm font-semibold text-primary">
+    <details
+      id="add-record"
+      className="surface group mb-7 p-5 open:border-primary/30"
+    >
+      <summary className="flex cursor-pointer items-center gap-3 text-sm font-semibold text-primary-ink">
+        <span className="grid size-9 place-items-center rounded-xl bg-accent">
+          <Plus size={18} />
+        </span>
         Add{" "}
         {kind === "services"
           ? "a service"
           : kind === "staff"
             ? "a staff member"
             : "a customer"}
+        <ChevronDown
+          size={16}
+          className="ml-auto transition-transform group-open:rotate-180"
+        />
       </summary>
       <form
         onSubmit={submit}
@@ -110,7 +121,7 @@ export function RecordForm({
           {busy ? "Saving…" : "Save"}
         </Button>
         {message && (
-          <p className="text-sm sm:col-span-2 lg:col-span-4" role="status">
+          <p className="notice sm:col-span-2 lg:col-span-4" role="status">
             {message}
           </p>
         )}

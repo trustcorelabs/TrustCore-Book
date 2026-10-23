@@ -1,5 +1,8 @@
 import { getNavigation } from "@/server/queries";
 import { WorkspaceNav } from "@/components/workspace-nav";
+import { AccountMenu } from "@/components/account-menu";
+import { ThemeSelect } from "@/components/theme-select";
+import { Badge } from "@/components/ui/badge";
 import { hasPermission } from "@/shared/policies/permissions";
 export default async function Layout({
   children,
@@ -24,24 +27,28 @@ export default async function Layout({
         }))}
       />
       <div className="min-w-0 flex-1">
-        <header className="flex min-h-20 items-center justify-between gap-4 border-b border-border bg-card px-5 md:px-9">
-          <p className="text-sm text-muted-foreground">
-            Your workspace <span className="mx-2 text-border">/</span>
-            <span className="font-medium text-foreground">{business.name}</span>
-          </p>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-xs text-muted-foreground sm:block">
-              {member.role.toLowerCase()}
-            </span>
-            <span
-              aria-label={user.name}
-              className="grid size-9 place-items-center rounded-full bg-accent text-xs font-bold text-primary"
-            >
-              {user.name.slice(0, 2).toUpperCase()}
-            </span>
+        <header className="border-b border-border bg-card/90">
+          <div className="workspace-shell flex min-h-20 flex-wrap items-center justify-between gap-3 py-4">
+            <div className="min-w-0">
+              <p className="text-[11px] text-muted-foreground">
+                Workspace / {member.role.toLowerCase()}
+              </p>
+              <p className="mt-1 max-w-[14rem] truncate text-sm font-semibold">
+                {business.name}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:block">
+                <Badge tone="teal">Business workspace</Badge>
+              </div>
+              <div className="hidden sm:block">
+                <ThemeSelect />
+              </div>
+              <AccountMenu name={user.name} email={user.email} />
+            </div>
           </div>
         </header>
-        <main id="main" className="mx-auto max-w-7xl p-5 py-8 md:p-9">
+        <main id="main" className="workspace-shell py-7 sm:py-8 xl:py-10">
           {children}
         </main>
       </div>

@@ -222,6 +222,27 @@ export async function createPublicBooking(input: unknown, clientId: string) {
     )
       return { error: "Choose a time within the next 60 days." };
     const result = await db().$transaction(async (tx) => {
+      // Serialize identical requests before availability checks. A second caller
+      // must receive the committed result even when its slot is now occupied.
+      await tx.$queryRaw`SELECT true AS acquired FROM (SELECT pg_advisory_xact_lock(hashtextextended(${`booking:${business.id}:${data.idempotencyKey}`}, 0))) AS guard`;
+      const replay = await tx.bookingRequest.findUnique({
+        where: {
+          businessId_idempotencyKey: {
+            businessId: business.id,
+            idempotencyKey: data.idempotencyKey,
+          },
+        },
+      });
+      if (replay) {
+        if (replay.payloadHash !== hash) throw new BookingRequestConflict();
+        return replay.appointmentId;
+      }
+      const lockedBusiness = await tx.$queryRaw<
+        { timezone: string; currency: string }[]
+      >`
+        SELECT "timezone", "currency" FROM "Business" WHERE "id" = ${business.id} AND "slug" = ${data.slug} FOR SHARE
+      `;
+      if (!lockedBusiness[0]) throw new BookingUnavailable();
       const lockedService = await tx.$queryRaw<{ id: string }[]>`
         SELECT "id" FROM "Service" WHERE "businessId" = ${business.id} AND "id" = ${data.serviceId} FOR SHARE
       `;
@@ -240,7 +261,7 @@ export async function createPublicBooking(input: unknown, clientId: string) {
         if (slotId(business.id, service.id, staff.id, from) !== data.slotId)
           continue;
         const chosen = { startsAt: from, endsAt: to };
-        await tx.$queryRaw`SELECT "id" FROM "Staff" WHERE "businessId" = ${business.id} AND "id" = ${staff.id} FOR SHARE`;
+        await tx.$queryRaw`SELECT "id" FROM "Staff" WHERE "businessId" = ${business.id} AND "id" = ${staff.id} FOR UPDATE`;
         // Re-read under the staff lock so schedule edits cannot race this check.
         const latest = await schedule(
           tx,
@@ -257,7 +278,7 @@ export async function createPublicBooking(input: unknown, clientId: string) {
           !current ||
           !isBookableInterval({
             ...chosen,
-            timezone: business.timezone,
+            timezone: lockedBusiness[0].timezone,
             rules: current.availability,
             exceptions: current.exceptions,
             appointments: current.appointments,
@@ -281,7 +302,7 @@ export async function createPublicBooking(input: unknown, clientId: string) {
             startsAt: chosen.startsAt,
             endsAt: chosen.endsAt,
             price: service.price,
-            currency: business.currency,
+            currency: lockedBusiness[0].currency,
             status: "CONFIRMED",
           },
         });
@@ -291,6 +312,13 @@ export async function createPublicBooking(input: unknown, clientId: string) {
             idempotencyKey: data.idempotencyKey,
             payloadHash: hash,
             appointmentId: appointment.id,
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            businessId: business.id,
+            action: "appointment.booked",
+            entityId: appointment.id,
           },
         });
         return appointment.id;
@@ -327,6 +355,10 @@ export async function createPublicBooking(input: unknown, clientId: string) {
                 "This booking request was already used for different details.",
             };
     }
+    if (error instanceof BookingRequestConflict)
+      return {
+        error: "This booking request was already used for different details.",
+      };
     if (error instanceof RateLimitExceededError)
       return { error: "Too many requests. Try again later." };
     if (error instanceof BookingUnavailable || constraintConflict)
@@ -338,3 +370,5 @@ export async function createPublicBooking(input: unknown, clientId: string) {
 }
 
 class BookingUnavailable extends Error {}
+
+class BookingRequestConflict extends Error {}

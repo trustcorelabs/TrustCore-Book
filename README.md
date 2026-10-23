@@ -52,3 +52,30 @@ Open `http://localhost:3000`. Pages can render without a database, but registrat
 Do not run `prisma db push` or `prisma migrate reset`. Apply the existing migrations only after confirming the exact Neon project, branch, endpoint, database, and migration history, and explicitly authorizing writes to that target. Keep `A2_MEMBERSHIP_ENABLED` and `BOOKING_MVP_ENABLED` off until their migration and test gates pass. No database is configured or migrated by rebuilding this repository.
 
 The unit suite is designed to run without a live database. Database and browser integration tests require separate, independently verified disposable fixtures. See the rollout documents before enabling them. Never use a previously shared credential; rotate exposed credentials first.
+
+## Booking workflow verification
+
+With the existing managed local database running, use `pnpm test:local`.
+This verifies the exact loopback cluster data directory, all five migration
+records and the booking schema before creating randomized test fixtures. It
+never creates a database or applies migrations. Fixtures are removed after each
+suite; existing accounts and businesses are preserved. Google Chrome must be
+installed for the desktop and mobile browser tests.
+
+The runner first tests database constraints, identity, membership, booking
+concurrency, idempotency, rollback, tenant boundaries and stale availability.
+Only after these pass does its separate browser-test server enable booking,
+on port 3100 with its own `.next-booking-test` output. The browser journey
+registers an owner, onboards a business, adds a service and staff member,
+configures hours and time off, books as a customer, and manages the appointment
+in the dashboard. Both persistent feature flags remain false.
+
+Production builds use Next.js's supported Webpack option because Turbopack's
+CSS worker cannot bind its evaluation port in this environment. Development
+continues to use the existing Next.js development command.
+
+Local verification does not certify the separate Neon development project.
+Use the read-only `pnpm dev:check` with fresh credentials and Neon metadata
+before authorizing any migrations there. Integration and browser test gates
+reject the former project's endpoint. Never enable persistent booking on Neon
+until that exact target passes its schema and integration gates.

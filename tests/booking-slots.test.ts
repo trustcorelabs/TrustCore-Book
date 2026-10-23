@@ -131,4 +131,36 @@ describe("booking slot boundaries", () => {
       ),
     ).toBe(true);
   });
+  it("anchors slots to working hours rather than a UTC half-hour grid", () => {
+    const slots = computeSlots({
+      from: new Date("2026-10-19T00:00:00Z"),
+      to: new Date("2026-10-20T00:00:00Z"),
+      now: new Date("2026-10-18T00:00:00Z"),
+      durationMinutes: 45,
+      timezone: "Asia/Colombo",
+      rules: [{ weekday: 1, startMinute: 555, endMinute: 675 }],
+      exceptions: [interval("2026-10-19T03:45:00Z", "2026-10-19T04:15:00Z")],
+      appointments: [],
+    });
+    expect(slots.map((slot) => slot.startsAt.toISOString())).toEqual([
+      "2026-10-19T04:15:00.000Z",
+      "2026-10-19T04:45:00.000Z",
+    ]);
+  });
+  it("offers intervals ending at local midnight and enforces the one-hour lead time", () => {
+    const slots = computeSlots({
+      from: new Date("2026-10-19T22:00:00Z"),
+      to: new Date("2026-10-20T00:00:00Z"),
+      now: new Date("2026-10-19T22:00:00Z"),
+      durationMinutes: 30,
+      timezone: "UTC",
+      rules: [{ weekday: 1, startMinute: 1320, endMinute: 1440 }],
+      exceptions: [],
+      appointments: [],
+    });
+    expect(slots.map((slot) => slot.startsAt.toISOString())).toEqual([
+      "2026-10-19T23:00:00.000Z",
+      "2026-10-19T23:30:00.000Z",
+    ]);
+  });
 });

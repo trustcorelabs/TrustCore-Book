@@ -1,8 +1,10 @@
 "use client";
+import { utcTimestamp } from "@/lib/utils";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Button } from "./ui/button";
+import { PasswordInput } from "./ui/password-input";
 import { Input } from "./ui/input";
 import {
   changeOwnPassword,
@@ -61,7 +63,7 @@ export function AccountSettings({ account }: { account: Account }) {
   }
 
   return (
-    <div className="grid gap-10 lg:grid-cols-2">
+    <div className="grid items-start gap-8 lg:grid-cols-2">
       <div className="space-y-8">
         <section aria-labelledby="profile-heading" className="space-y-4">
           <h2 id="profile-heading" className="text-xl font-semibold">
@@ -74,9 +76,9 @@ export function AccountSettings({ account }: { account: Account }) {
               const name = new FormData(form).get("name");
               void run(() => updateOwnProfile({ name }));
             }}
-            className="space-y-3"
+            className="grid gap-2"
           >
-            <label htmlFor="account-name" className="block text-sm">
+            <label htmlFor="account-name" className="mb-0 block text-sm">
               Full name
             </label>
             <Input
@@ -88,7 +90,11 @@ export function AccountSettings({ account }: { account: Account }) {
               required
               autoComplete="name"
             />
-            <Button type="submit" disabled={busy}>
+            <Button
+              className="mt-2 justify-self-start"
+              type="submit"
+              disabled={busy}
+            >
               Save profile
             </Button>
           </form>
@@ -116,25 +122,23 @@ export function AccountSettings({ account }: { account: Account }) {
               );
               form.reset();
             }}
-            className="space-y-3"
+            className="grid gap-2"
           >
-            <label htmlFor="current-password" className="block text-sm">
+            <label htmlFor="current-password" className="mb-0 block text-sm">
               Current password
             </label>
-            <Input
+            <PasswordInput
               id="current-password"
               name="currentPassword"
-              type="password"
               autoComplete="current-password"
               required
             />
-            <label htmlFor="new-password" className="block text-sm">
+            <label htmlFor="new-password" className="mb-0 block text-sm">
               New password
             </label>
-            <Input
+            <PasswordInput
               id="new-password"
               name="newPassword"
-              type="password"
               autoComplete="new-password"
               minLength={12}
               required
@@ -142,7 +146,11 @@ export function AccountSettings({ account }: { account: Account }) {
             <p className="text-xs text-muted-foreground">
               12 to 72 characters, at most 72 UTF-8 bytes.
             </p>
-            <Button type="submit" disabled={busy}>
+            <Button
+              className="mt-2 justify-self-start"
+              type="submit"
+              disabled={busy}
+            >
               Change password
             </Button>
           </form>
@@ -175,10 +183,10 @@ export function AccountSettings({ account }: { account: Account }) {
                     {session.current ? "This session" : "Other session"}
                   </p>
                   <p className="text-muted-foreground">
-                    Started {new Date(session.createdAt).toLocaleString()}
+                    Started {utcTimestamp(session.createdAt)}
                   </p>
                   <p className="text-muted-foreground">
-                    Expires {new Date(session.expiresAt).toLocaleString()}
+                    Expires {utcTimestamp(session.expiresAt)}
                   </p>
                 </div>
                 <Button

@@ -40,12 +40,7 @@ function smokeConfig() {
       app.hash ||
       app.username ||
       app.password ||
-      !(
-        (database.hostname ===
-          "ep-wild-cloud-b52apabm.c-7.us-east-2.aws.neon.tech" &&
-          database.pathname === "/trustcore_book_a1_test") ||
-        approvedDevelopmentDatabase(AUTH_SMOKE_DATABASE_URL)
-      ) ||
+      !approvedDevelopmentDatabase(AUTH_SMOKE_DATABASE_URL) ||
       database.searchParams.get("sslmode") !== "verify-full"
     )
       return null;

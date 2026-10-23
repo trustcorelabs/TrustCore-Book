@@ -1,4 +1,6 @@
 "use client";
+import { Button } from "@/components/ui/button";
+import { utcTimestamp } from "@/lib/utils";
 import { useState, useTransition } from "react";
 import {
   deleteMember,
@@ -56,33 +58,26 @@ export function MemberControls({
         }}
         className="flex flex-wrap items-end gap-3 border-t border-border pt-6"
       >
-        <label className="grid gap-1 text-sm">
+        <label className="mb-0 grid min-w-0 flex-1 gap-2 text-sm">
           Invite by email
           <input
             name="email"
             type="email"
             required
             maxLength={254}
-            className="rounded border border-border bg-background px-3 py-2"
+            className="input"
           />
         </label>
-        <label className="grid gap-1 text-sm">
+        <label className="mb-0 grid min-w-0 flex-1 gap-2 text-sm">
           Role
-          <select
-            name="role"
-            className="rounded border border-border bg-background px-3 py-2"
-          >
+          <select name="role" className="input">
             <option value="MEMBER">Member</option>
             {actorRole === "OWNER" && <option value="ADMIN">Admin</option>}
           </select>
         </label>
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50"
-        >
+        <Button type="submit" disabled={pending} className="w-full sm:w-auto">
           Send invitation
-        </button>
+        </Button>
       </form>
       <section aria-labelledby="pending-invites">
         <h2 id="pending-invites" className="text-lg font-semibold">
@@ -101,7 +96,7 @@ export function MemberControls({
               >
                 <span>
                   {invite.invitedEmail} · {invite.role.toLowerCase()} · Expires{" "}
-                  {new Date(invite.expiresAt).toLocaleDateString()}
+                  {utcTimestamp(invite.expiresAt)}
                 </span>
                 <button
                   type="button"

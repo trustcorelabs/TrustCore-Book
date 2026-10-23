@@ -1,5 +1,7 @@
 "use client";
 
+import { CalendarDays, Clock3, Pencil } from "lucide-react";
+import { StatusBadge } from "@/components/ui/badge";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -43,12 +45,14 @@ function StaffRow({
   services,
   timezone,
   today,
+  readOnly = false,
 }: {
   businessId: string;
   staff: Staff;
   services: Service[];
   timezone: string;
   today: string;
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [name, setName] = useState(staff.name);
@@ -128,15 +132,58 @@ function StaffRow({
       setBusy(false);
     }
   }
-  return (
-    <details className="border-b border-border py-5">
-      <summary className="cursor-pointer font-semibold">
-        {staff.name}{" "}
-        <span className="ml-2 text-xs font-normal text-muted-foreground">
-          {staff.active ? "Active" : "Inactive"}
+  const summary = (
+    <>
+      <div className="flex items-center justify-between gap-3">
+        <span className="icon-tile tone-teal text-sm font-bold">
+          {staff.name
+            .split(" ")
+            .map((n) => n[0])
+            .slice(0, 2)
+            .join("")}
         </span>
-      </summary>
-      <div className="mt-5 grid gap-6 lg:grid-cols-2">
+        <StatusBadge status={staff.active ? "active" : "inactive"} />
+      </div>
+      <h3 className="mt-5 text-base font-bold">{staff.name}</h3>
+      <p className="mt-2 break-words text-xs leading-6 text-muted-foreground">
+        {services
+          .filter((service) => staff.serviceIds.includes(service.id))
+          .map((service) => service.name)
+          .join(" · ") || "No services assigned"}
+      </p>
+      <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <Clock3 size={14} />
+          {staff.rules.length} working days / week
+        </span>
+        <span className="flex items-center gap-1.5">
+          <CalendarDays size={14} />
+          {staff.timeOff.length} time-off periods
+        </span>
+      </div>
+      {staff.rules.length > 0 && (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          {staff.rules
+            .map(
+              (r) =>
+                `${days[r.weekday]?.slice(0, 3)} ${clock(r.startMinute)}–${clock(r.endMinute)}`,
+            )
+            .join(" · ")}
+        </p>
+      )}
+      {!readOnly && (
+        <span className="mt-5 flex items-center gap-2 border-t border-border pt-4 text-xs font-semibold text-primary-ink">
+          <Pencil size={13} />
+          Edit profile, services & hours
+        </span>
+      )}
+    </>
+  );
+  if (readOnly) return <article className="editor-card">{summary}</article>;
+  return (
+    <details className="editor-card">
+      <summary>{summary}</summary>
+      <div className="mt-5 grid gap-6 xl:grid-cols-2">
         <section aria-label={`${staff.name} details`}>
           <label htmlFor={`staff-name-${staff.id}`}>Name</label>
           <Input
@@ -165,7 +212,7 @@ function StaffRow({
         </section>
         <section aria-label={`${staff.name} schedule`}>
           <h3 className="text-sm font-semibold">Services</h3>
-          <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
             {services
               .filter(
                 (service) => service.active || assigned.includes(service.id),
@@ -173,12 +220,12 @@ function StaffRow({
               .map((service) => (
                 <label
                   key={service.id}
-                  className="flex items-center gap-2 text-sm"
+                  className="mb-0 flex items-start gap-2 text-sm leading-5"
                 >
                   <input
                     type="checkbox"
                     checked={assigned.includes(service.id)}
-                    disabled={!service.active}
+                    disabled={busy}
                     onChange={(event) =>
                       setAssigned((current) =>
                         event.target.checked
@@ -192,17 +239,22 @@ function StaffRow({
               ))}
           </div>
           <h3 className="mt-5 text-sm font-semibold">Weekly hours</h3>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Times use {timezone}. An end time of 00:00 means midnight at the end
+            of the day.
+          </p>
           <div className="mt-2 space-y-2">
             {days.map((day, weekday) => {
               const rule = rules.find((item) => item.weekday === weekday);
               return (
                 <div
                   key={day}
-                  className="grid grid-cols-[6rem_1fr_1fr] items-center gap-2 text-sm sm:grid-cols-[7rem_1fr_1fr]"
+                  className="grid grid-cols-[5rem_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 text-xs sm:grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)]"
                 >
-                  <label className="flex items-center gap-2">
+                  <label className="mb-0 flex items-center gap-2 leading-4">
                     <input
                       type="checkbox"
+                      aria-label={day}
                       checked={!!rule}
                       onChange={(event) =>
                         setDay(
@@ -213,12 +265,13 @@ function StaffRow({
                         )
                       }
                     />
-                    {day}
+                    <span className="sm:hidden">{day.slice(0, 3)}</span>
+                    <span className="hidden sm:inline">{day}</span>
                   </label>
                   <input
                     aria-label={`${day} start`}
                     type="time"
-                    className="h-9 min-w-0 rounded-md border border-border bg-background px-1"
+                    className="h-10 w-full min-w-0 rounded-md border border-border bg-background px-1"
                     disabled={!rule}
                     value={clock(rule?.startMinute ?? 540)}
                     onChange={(event) =>
@@ -232,14 +285,14 @@ function StaffRow({
                   <input
                     aria-label={`${day} end`}
                     type="time"
-                    className="h-9 min-w-0 rounded-md border border-border bg-background px-1"
+                    className="h-10 w-full min-w-0 rounded-md border border-border bg-background px-1"
                     disabled={!rule}
-                    value={clock(rule?.endMinute ?? 1020)}
+                    value={clock((rule?.endMinute ?? 1020) % 1440)}
                     onChange={(event) =>
                       rule &&
                       setDay(weekday, {
                         ...rule,
-                        endMinute: minutes(event.target.value),
+                        endMinute: minutes(event.target.value) || 1440,
                       })
                     }
                   />
@@ -257,7 +310,10 @@ function StaffRow({
           </Button>
           <div className="mt-7 border-t border-border pt-5">
             <h3 className="text-sm font-semibold">Time off ({timezone})</h3>
-            <form action={addTimeOff} className="mt-3 grid grid-cols-2 gap-3">
+            <form
+              action={addTimeOff}
+              className="mt-3 grid grid-cols-1 gap-3 min-[400px]:grid-cols-2"
+            >
               <div>
                 <label htmlFor={`off-start-date-${staff.id}`}>From date</label>
                 <Input
@@ -301,7 +357,7 @@ function StaffRow({
                 />
               </div>
               <Button
-                className="col-span-2 justify-self-start"
+                className="justify-self-start min-[400px]:col-span-2"
                 type="submit"
                 disabled={busy}
               >
@@ -344,7 +400,7 @@ function StaffRow({
         </section>
       </div>
       {message && (
-        <p role="status" className="mt-4 text-sm">
+        <p role="status" className="notice mt-4">
           {message}
         </p>
       )}
@@ -358,19 +414,20 @@ export function StaffEditor({
   services,
   timezone,
   today,
+  readOnly = false,
 }: {
   businessId: string;
   staff: Staff[];
   services: Service[];
   timezone: string;
   today: string;
+  readOnly?: boolean;
 }) {
   return (
     <section
-      className="mt-8 border-t border-border"
+      className="grid items-stretch gap-5 xl:grid-cols-2"
       aria-label="Manage staff schedules"
     >
-      <h2 className="pt-6 text-lg font-semibold">Staff and weekly schedules</h2>
       {staff.map((person) => (
         <StaffRow
           key={person.id}
@@ -379,6 +436,7 @@ export function StaffEditor({
           services={services}
           timezone={timezone}
           today={today}
+          readOnly={readOnly}
         />
       ))}
     </section>

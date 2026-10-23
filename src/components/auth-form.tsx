@@ -9,6 +9,7 @@ import Link from "next/link";
 import { loginSchema, registerSchema } from "@/lib/validation";
 import { register as registerAccount } from "@/server/actions";
 import { Button } from "./ui/button";
+import { PasswordInput } from "./ui/password-input";
 import { Input } from "./ui/input";
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const isRegister = mode === "register";
@@ -111,15 +112,15 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       </div>
       <div>
         <label htmlFor="password">Password</label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete={isRegister ? "new-password" : "current-password"}
           {...register("password")}
           aria-invalid={!!errors.password}
+          aria-describedby={isRegister ? "password-hint" : undefined}
         />
         {isRegister && (
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p id="password-hint" className="mt-2 text-xs text-muted-foreground">
             At least 12 characters. Up to 72 UTF-8 bytes.
           </p>
         )}

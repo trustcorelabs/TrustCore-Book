@@ -1,4 +1,6 @@
 "use client";
+import { Button } from "./ui/button";
+import { utcTimestamp } from "@/lib/utils";
 
 import { useState } from "react";
 import type { LocalOutboxEntry } from "@/shared/contracts/local-outbox";
@@ -42,23 +44,23 @@ export function LocalOutboxViewer() {
           void refresh();
         }}
       >
-        <label className="min-w-64 flex-1 text-sm font-medium">
+        <label className="mb-0 min-w-0 basis-full flex-1 text-sm font-medium sm:basis-64">
           Developer access token
           <input
             type="password"
             autoComplete="off"
             value={accessToken}
             onChange={(event) => setAccessToken(event.target.value)}
-            className="mt-2 block w-full rounded border border-border bg-background px-3 py-2"
+            className="input mt-2"
           />
         </label>
-        <button
+        <Button
           type="submit"
           disabled={loading || !accessToken}
-          className="rounded bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50"
+          className="w-full sm:w-auto"
         >
           {loading ? "Loading" : "Refresh"}
-        </button>
+        </Button>
       </form>
       {status && (
         <p role="status" className="mt-4 text-sm text-destructive">
@@ -77,7 +79,7 @@ export function LocalOutboxViewer() {
             <div className="min-w-0 break-all">
               <div>{message.recipient}</div>
               <div className="text-muted-foreground">
-                Expires {new Date(message.expiresAt).toLocaleString()}
+                Expires {utcTimestamp(message.expiresAt)}
               </div>
             </div>
             <a

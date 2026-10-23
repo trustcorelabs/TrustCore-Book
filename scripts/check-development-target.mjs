@@ -204,6 +204,23 @@ export async function checkDevelopmentTarget(
       throw new Error(
         "Migration history is complete but required identity tables or columns are missing.",
       );
+    const bookingGuards = Number(
+      sql(
+        url,
+        `SELECT count(*) FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND (
+          (conrelid = 'public."Appointment"'::regclass AND conname = 'appointment_staff_no_overlap' AND contype = 'x') OR
+          (conrelid = 'public."BookingRequest"'::regclass AND conname IN ('BookingRequest_businessId_fkey','BookingRequest_businessId_appointmentId_fkey') AND contype = 'f')
+        )`,
+      ),
+    );
+    const idempotencyIndex = sql(
+      url,
+      `SELECT count(*) FROM pg_index WHERE indexrelid = to_regclass('public."BookingRequest_businessId_idempotencyKey_key"') AND indisunique AND indisvalid`,
+    );
+    if (bookingGuards !== 3 || idempotencyIndex !== "1")
+      throw new Error(
+        "Booking overlap, tenant or idempotency constraints are missing. Keep booking disabled.",
+      );
   }
   return {
     state: applied.length === migrationNames.length ? "ready" : "partial",

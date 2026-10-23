@@ -1,53 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { expect, test } from "@playwright/test";
-import { approvedDevelopmentDatabase } from "../development-database-target";
+import { sql, verified } from "./database";
 
-const run = promisify(execFile);
-const url = process.env.BOOKING_E2E_DATABASE_URL;
-const verified =
-  process.env.BOOKING_E2E_DATABASE_VERIFIED === "YES" &&
-  process.env.BOOKING_MVP_ENABLED === "true" &&
-  !!url &&
-  (() => {
-    try {
-      const target = new URL(url);
-      return (
-        ["postgres:", "postgresql:"].includes(target.protocol) &&
-        ((target.hostname ===
-          "ep-wild-cloud-b52apabm.c-7.us-east-2.aws.neon.tech" &&
-          target.pathname === "/trustcore_book_a1_test") ||
-          approvedDevelopmentDatabase(url))
-      );
-    } catch {
-      return false;
-    }
-  })();
-
-async function sql(query: string) {
-  const target = new URL(url!);
-  const result = await run(
-    "psql",
-    ["-X", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-c", query],
-    {
-      env: {
-        ...process.env,
-        PGHOST: target.hostname,
-        PGPORT: target.port || "5432",
-        PGUSER: decodeURIComponent(target.username),
-        PGPASSWORD: decodeURIComponent(target.password),
-        PGDATABASE: target.pathname.slice(1),
-        PGSSLMODE: "verify-full",
-        PGCONNECT_TIMEOUT: "5",
-      },
-      timeout: 15000,
-    },
-  );
-  return result.stdout.trim();
-}
-
-test.describe("public booking on verified disposable Neon", () => {
+test.describe("public booking on verified development database", () => {
   test.skip(
     !verified,
     "Requires externally verified disposable booking database",

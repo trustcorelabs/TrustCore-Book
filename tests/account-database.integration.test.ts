@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { issueAccountToken } from "@/server/account-tokens";
-import { approvedDevelopmentDatabase } from "./development-database-target";
+import { approvedTestDatabase } from "./development-database-target";
 
 const holder = vi.hoisted(() => ({ client: null as PrismaClient | null }));
 vi.mock("@/lib/db", () => ({
@@ -26,10 +26,7 @@ const approved =
   !!url &&
   (() => {
     try {
-      return (
-        new URL(url).pathname.endsWith("_test") ||
-        approvedDevelopmentDatabase(url)
-      );
+      return approvedTestDatabase(url);
     } catch {
       return false;
     }

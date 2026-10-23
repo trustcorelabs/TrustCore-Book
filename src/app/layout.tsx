@@ -3,7 +3,7 @@ import { Providers } from "@/components/providers";
 import "./globals.css";
 export const metadata: Metadata = {
   title: {
-    default: "TrustCore Book · A calmer way to run your business",
+    default: "TrustCore Book · Your business, beautifully connected",
     template: "%s · TrustCore Book",
   },
   description:

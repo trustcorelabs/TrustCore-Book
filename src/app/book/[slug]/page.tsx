@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getPublicBusiness } from "@/server/queries";
 import { Brand } from "@/components/brand";
 import { Card } from "@/components/ui/card";
-import { CalendarDays, MapPin } from "lucide-react";
+import { CalendarDays, MapPin, Sparkles, Clock3 } from "lucide-react";
 import { money } from "@/lib/utils";
 import { BookingForm } from "@/features/public-booking/booking-form";
 import { businessLocalDate } from "@/features/booking-engine/slots";
@@ -18,13 +18,15 @@ export default async function Page({
   if (!business) notFound();
   const now = new Date();
   return (
-    <>
-      <header className="border-b border-border bg-card p-6">
-        <Brand />
+    <div className="hero-wash min-h-screen">
+      <header className="border-b border-border bg-card py-6">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <Brand />
+        </div>
       </header>
-      <main id="main" className="mx-auto max-w-3xl px-5 py-12">
+      <main id="main" className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
         <p className="eyebrow mb-4">A little time for yourself</p>
-        <h1 className="text-4xl font-semibold">{business.name}</h1>
+        <h1 className="text-4xl font-bold">{business.name}</h1>
         <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
           <MapPin size={16} />
           {business.timezone} · {business.currency}
@@ -33,6 +35,7 @@ export default async function Page({
         business.services.length ? (
           <BookingForm
             slug={slug}
+            currency={business.currency}
             timezone={business.timezone}
             minDate={businessLocalDate(now, business.timezone)}
             maxDate={businessLocalDate(
@@ -45,8 +48,10 @@ export default async function Page({
             }))}
           />
         ) : (
-          <div className="my-8 border-y border-border py-6">
-            <CalendarDays className="mb-3 text-primary" />
+          <div className="surface my-8 bg-sky-soft p-6">
+            <span className="icon-tile tone-sky mb-4">
+              <CalendarDays size={22} />
+            </span>
             <p className="text-sm text-muted-foreground">
               Online booking is not available yet. Please contact the business
               directly.
@@ -57,12 +62,21 @@ export default async function Page({
         {business.services.length ? (
           <div className="space-y-3">
             {business.services.map((s, i) => (
-              <Card key={i} className="flex items-center justify-between gap-4">
-                <div>
-                  <h3 className="font-semibold">{s.name}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {s.durationMinutes} minutes
-                  </p>
+              <Card
+                key={i}
+                className="flex flex-wrap items-center justify-between gap-4"
+              >
+                <div className="flex min-w-0 items-center gap-4">
+                  <span className="icon-tile tone-pink">
+                    <Sparkles size={20} />
+                  </span>
+                  <div>
+                    <h3 className="font-semibold">{s.name}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      <Clock3 size={13} className="mr-1 inline" />
+                      {s.durationMinutes} minutes
+                    </p>
+                  </div>
                 </div>
                 <p className="font-semibold">
                   {money(s.price.toString(), business.currency)}
@@ -79,6 +93,6 @@ export default async function Page({
           Powered by TrustCore Book · TrustCore Labs
         </p>
       </main>
-    </>
+    </div>
   );
 }

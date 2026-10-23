@@ -1,13 +1,14 @@
+import { AuthLayout } from "@/components/auth-layout";
 import { AccountFlowForm } from "@/components/account-flow-form";
-import { Brand } from "@/components/brand";
 export const metadata = { referrer: "no-referrer" };
-
 export default function Page() {
   return (
-    <main className="mx-auto max-w-xl space-y-4 px-6 py-10">
-      <Brand />
-      <h1 className="text-3xl font-semibold">Reset password</h1>
+    <AuthLayout
+      compact
+      title="Choose a new password"
+      description="Keep your account secure. We’ll guide you through the next step."
+    >
       <AccountFlowForm mode="reset" />
-    </main>
+    </AuthLayout>
   );
 }

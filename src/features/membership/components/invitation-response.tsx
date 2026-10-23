@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { answerMemberInvitation } from "@/server/actions";
@@ -36,22 +37,21 @@ export function InvitationResponse() {
       </p>
       {!complete && (
         <div className="flex gap-3">
-          <button
+          <Button
             type="button"
             disabled={pending}
             onClick={() => respond(true)}
-            className="rounded bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50"
           >
             Accept
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             disabled={pending}
             onClick={() => respond(false)}
-            className="rounded border border-border px-4 py-2 disabled:opacity-50"
+            variant="outline"
           >
             Decline
-          </button>
+          </Button>
         </div>
       )}
       {message && (

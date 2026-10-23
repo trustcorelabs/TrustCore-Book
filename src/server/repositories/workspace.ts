@@ -131,7 +131,7 @@ export function replaceStaffSchedule(
     if (!locked.length) throw new Error("Staff not found");
     const ids = [...new Set(input.serviceIds)];
     const count = await tx.service.count({
-      where: { id: { in: ids }, businessId: scope.businessId, active: true },
+      where: { id: { in: ids }, businessId: scope.businessId },
     });
     if (count !== ids.length) throw new Error("Service not found");
     await tx.staffService.deleteMany({
@@ -169,7 +169,7 @@ export function replaceStaffSchedule(
 export function transitionAppointment(
   scope: TenantContext,
   id: string,
-  status: "CANCELLED" | "COMPLETED" | "NO_SHOW",
+  status: "CONFIRMED" | "CANCELLED" | "COMPLETED" | "NO_SHOW",
 ) {
   return db().$transaction(async (tx) => {
     await requireCurrentManager(tx, scope);
@@ -177,7 +177,9 @@ export function transitionAppointment(
       where: {
         id,
         businessId: scope.businessId,
-        status: { in: ["PENDING", "CONFIRMED"] },
+        status: {
+          in: status === "CONFIRMED" ? ["PENDING"] : ["PENDING", "CONFIRMED"],
+        },
       },
       data: { status },
     });

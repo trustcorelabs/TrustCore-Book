@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
-import { approvedDevelopmentDatabase } from "./development-database-target";
+import { approvedTestDatabase } from "./development-database-target";
 const run = promisify(execFile);
 const url = process.env.TEST_DATABASE_URL;
 const suite = url ? describe : describe.skip;
@@ -40,11 +40,7 @@ function appointment(
 }
 suite("PostgreSQL tenant and booking constraints", () => {
   beforeAll(async () => {
-    if (
-      !url ||
-      (!new URL(url).pathname.endsWith("_test") &&
-        !approvedDevelopmentDatabase(url))
-    )
+    if (!url || !approvedTestDatabase(url))
       throw new Error(
         "TEST_DATABASE_URL must name an approved development test target.",
       );
@@ -53,11 +49,7 @@ suite("PostgreSQL tenant and booking constraints", () => {
     );
   });
   afterAll(async () => {
-    if (
-      url &&
-      (new URL(url).pathname.endsWith("_test") ||
-        approvedDevelopmentDatabase(url))
-    )
+    if (url && approvedTestDatabase(url))
       await sql(
         `DELETE FROM "Appointment" WHERE "businessId" IN ('${a}','${b}'); DELETE FROM "Business" WHERE id IN ('${a}','${b}');`,
       );

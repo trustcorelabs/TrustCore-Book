@@ -39,12 +39,15 @@ export function AccountMenu({ name, email }: { name: string; email: string }) {
           details.current.open = false;
       }}
     >
-      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted [&::-webkit-details-marker]:hidden">
+      <summary
+        aria-label="Account"
+        className="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 text-sm font-medium hover:bg-muted [&::-webkit-details-marker]:hidden"
+      >
         <UserRound size={16} aria-hidden="true" />
-        Account
+        <span className="hidden sm:inline">Account</span>
         <ChevronDown size={14} aria-hidden="true" />
       </summary>
-      <div className="absolute right-0 z-20 mt-2 w-64 max-w-[calc(100vw-2.5rem)] rounded-xl border border-border bg-card p-2 shadow-lg">
+      <div className="absolute right-0 z-20 mt-2 w-64 max-w-[calc(100vw-2.5rem)] rounded-xl border border-border bg-card p-2 shadow-float">
         <div className="border-b border-border px-3 py-3">
           <p className="truncate text-sm font-semibold">{name}</p>
           <p className="mt-1 truncate text-xs text-muted-foreground">{email}</p>

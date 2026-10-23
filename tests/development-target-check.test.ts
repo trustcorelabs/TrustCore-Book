@@ -91,4 +91,43 @@ describe("read-only development target check", () => {
       checkDevelopmentTarget(url, "test-key", metadata, sql),
     ).rejects.toThrow(/columns/);
   });
+  it.each([
+    { guards: "3", index: "1", ready: true },
+    { guards: "2", index: "1", ready: false },
+    { guards: "3", index: "0", ready: false },
+  ])(
+    "requires actual booking constraints, not only a migration ledger: $guards/$index",
+    async ({ guards, index, ready }) => {
+      const sql = vi.fn((_target: URL, statement: string) => {
+        if (statement.includes("current_database")) return "neondb";
+        if (statement.includes("table_type")) return "17";
+        if (
+          statement.includes("to_regclass") &&
+          !statement.includes("pg_index")
+        )
+          return "t";
+        if (statement.includes("SELECT migration_name"))
+          return [
+            "20261018000000_initial",
+            "20261018010000_phase_a1_identity",
+            "20261019010000_phase_a2_invitations",
+            "20261019020000_phase_a2_final_owner_guard",
+            "20261019030000_booking_idempotency",
+          ].join("\n");
+        if (statement.includes("finished_at IS NULL")) return "0";
+        if (statement.includes("information_schema.tables")) return "8";
+        if (statement.includes("information_schema.columns")) return "6";
+        if (statement.includes("pg_constraint")) return guards;
+        if (statement.includes("pg_index")) return index;
+        throw new Error("Unexpected query");
+      });
+      const result = checkDevelopmentTarget(url, "test-key", metadata, sql);
+      if (ready)
+        await expect(result).resolves.toMatchObject({ state: "ready" });
+      else await expect(result).rejects.toThrow(/constraints/);
+      expect(
+        sql.mock.calls.every(([, statement]) => statement.startsWith("SELECT")),
+      ).toBe(true);
+    },
+  );
 });

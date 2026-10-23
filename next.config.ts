@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
+import { networkInterfaces } from "node:os";
+
 const config: NextConfig = {
   poweredByHeader: false,
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+  // Allow the dev client to connect when opening Next's Network URL.
+  allowedDevOrigins: Object.values(networkInterfaces())
+    .flatMap((addresses) => addresses ?? [])
+    .filter((address) => address.family === "IPv4" && !address.internal)
+    .map((address) => address.address),
   logging: { serverFunctions: false },
   turbopack: { root: process.cwd() },
   async headers() {

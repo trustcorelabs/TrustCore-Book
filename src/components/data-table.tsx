@@ -9,7 +9,9 @@ import {
   useReactTable,
   type SortingState,
 } from "@tanstack/react-table";
-import { Search, ArrowUpDown, Inbox } from "lucide-react";
+import { Search, ArrowUpDown } from "lucide-react";
+import { EmptyState } from "./ui/empty-state";
+import { StatusBadge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 export function DataTable({
@@ -40,23 +42,13 @@ export function DataTable({
     initialState: { pagination: { pageSize: 10 } },
   });
   if (!rows.length)
-    return (
-      <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center">
-        <span className="mx-auto mb-5 grid size-12 place-items-center rounded-xl bg-accent text-primary">
-          <Inbox size={24} />
-        </span>
-        <h2 className="text-lg font-semibold">{emptyTitle}</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-          {emptyDescription}
-        </p>
-      </div>
-    );
+    return <EmptyState title={emptyTitle} description={emptyDescription} />;
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
-      <div className="relative m-4 max-w-sm">
+    <div className="surface min-w-0 overflow-hidden">
+      <div className="relative m-5 max-w-sm">
         <Search
           size={16}
-          className="absolute left-3 top-3.5 text-muted-foreground"
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
         />
         <Input
           aria-label="Search records"
@@ -66,15 +58,49 @@ export function DataTable({
           onChange={(e) => setFilter(e.target.value)}
         />
       </div>
-      <div className="overflow-x-auto">
+      <div className="divide-y divide-border sm:hidden">
+        {table.getRowModel().rows.map((row) => (
+          <article key={row.id} className="p-5">
+            <dl className="space-y-3">
+              {row.getVisibleCells().map((cell) => (
+                <div key={cell.id}>
+                  <dt className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {String(cell.column.columnDef.header)}
+                  </dt>
+                  <dd className="mt-1 break-words text-sm">
+                    <span
+                      className={
+                        cell.column.id === "name" ? "font-semibold" : undefined
+                      }
+                    >
+                      {String(cell.getValue())}
+                    </span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </article>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto sm:block">
         <table className="w-full text-left text-sm">
-          <thead className="bg-muted text-xs text-muted-foreground">
+          <thead className="bg-background text-[11px] uppercase tracking-wide text-muted-foreground">
             {table.getHeaderGroups().map((group) => (
               <tr key={group.id}>
                 {group.headers.map((header) => (
-                  <th key={header.id} className="px-5 py-4">
+                  <th
+                    key={header.id}
+                    className="px-5 py-4"
+                    aria-sort={
+                      header.column.getIsSorted() === "asc"
+                        ? "ascending"
+                        : header.column.getIsSorted() === "desc"
+                          ? "descending"
+                          : "none"
+                    }
+                  >
                     <button
-                      className="flex items-center gap-2"
+                      className="relative flex items-center gap-2"
                       onClick={header.column.getToggleSortingHandler()}
                     >
                       {flexRender(
@@ -93,10 +119,31 @@ export function DataTable({
           </thead>
           <tbody>
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-t border-border">
+              <tr
+                key={row.id}
+                className="border-t border-border transition-colors hover:bg-background"
+              >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className="whitespace-nowrap px-5 py-4">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    {cell.column.id === "status" ? (
+                      <StatusBadge status={String(cell.getValue())} />
+                    ) : cell.column.id === "name" ? (
+                      <span className="flex items-center gap-3 font-semibold">
+                        <span
+                          aria-hidden="true"
+                          className="grid size-9 shrink-0 place-items-center rounded-full bg-amber-soft text-xs font-bold text-amber-ink"
+                        >
+                          {String(cell.getValue())
+                            .split(" ")
+                            .map((n) => n[0])
+                            .slice(0, 2)
+                            .join("")}
+                        </span>
+                        {String(cell.getValue())}
+                      </span>
+                    ) : (
+                      flexRender(cell.column.columnDef.cell, cell.getContext())
+                    )}
                   </td>
                 ))}
               </tr>
