@@ -4,6 +4,8 @@ import type { NextRequest } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { rateLimit, RateLimitExceededError } from "@/server/rate-limit";
 
+export const runtime = "nodejs";
+
 function postAction(request: Request, segments: string[]) {
   const path = new URL(request.url).pathname;
   const canonical = path === `/api/auth/${segments.join("/")}`;
@@ -65,6 +67,15 @@ async function handler(
       );
     }
   }
-  return NextAuth(authOptions())(request, { ...context, params });
+  try {
+    return await NextAuth(authOptions())(request, { ...context, params });
+  } catch {
+    // Configuration and storage failures must not become an empty 500 or leak
+    // connection details. getEnv and Auth.js log only safe diagnostic labels.
+    return Response.json(
+      { error: "Authentication temporarily unavailable. Try again later." },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
+  }
 }
 export { handler as GET, handler as POST };

@@ -11,6 +11,7 @@ import { register as registerAccount } from "@/server/actions";
 import { Button } from "./ui/button";
 import { PasswordInput } from "./ui/password-input";
 import { Input } from "./ui/input";
+import { useHydrated } from "@/hooks/use-hydrated";
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const isRegister = mode === "register";
   const schema = isRegister
@@ -24,8 +25,10 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
   const router = useRouter();
+  const hydrated = useHydrated();
   async function submit(values: z.infer<typeof schema>) {
     setMessage("");
+    setSuccess(false);
     try {
       if (isRegister) {
         const result = await registerAccount(values);
@@ -76,6 +79,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     <form
       action={isRegister ? "/register" : "/login"}
       method="post"
+      noValidate
+      aria-busy={isSubmitting}
       onSubmit={handleSubmit(submit)}
       className="space-y-5"
     >
@@ -85,11 +90,14 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           <Input
             id="name"
             autoComplete="name"
+            className="text-base sm:text-sm"
+            disabled={!hydrated || isSubmitting || success}
             {...register("name")}
             aria-invalid={!!errors.name}
+            aria-describedby={errors.name ? "name-error" : undefined}
           />
           {errors.name && (
-            <p className="mt-1 text-xs text-destructive">
+            <p id="name-error" className="mt-1 text-xs text-destructive">
               {errors.name.message}
             </p>
           )}
@@ -101,11 +109,16 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           id="email"
           type="email"
           autoComplete="email"
+          className="text-base sm:text-sm"
+          autoCapitalize="none"
+          spellCheck={false}
+          disabled={!hydrated || isSubmitting || success}
           {...register("email")}
           aria-invalid={!!errors.email}
+          aria-describedby={errors.email ? "email-error" : undefined}
         />
         {errors.email && (
-          <p className="mt-1 text-xs text-destructive">
+          <p id="email-error" className="mt-1 text-xs text-destructive">
             {errors.email.message}
           </p>
         )}
@@ -115,9 +128,15 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         <PasswordInput
           id="password"
           autoComplete={isRegister ? "new-password" : "current-password"}
+          className="text-base sm:text-sm"
+          disabled={!hydrated || isSubmitting || success}
           {...register("password")}
           aria-invalid={!!errors.password}
-          aria-describedby={isRegister ? "password-hint" : undefined}
+          aria-describedby={
+            [isRegister && "password-hint", errors.password && "password-error"]
+              .filter(Boolean)
+              .join(" ") || undefined
+          }
         />
         {isRegister && (
           <p id="password-hint" className="mt-2 text-xs text-muted-foreground">
@@ -125,15 +144,15 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           </p>
         )}
         {errors.password && (
-          <p className="mt-1 text-xs text-destructive">
+          <p id="password-error" className="mt-1 text-xs text-destructive">
             {errors.password.message}
           </p>
         )}
       </div>
       {message && (
         <p
-          role="status"
-          className={`rounded-lg p-3 text-sm ${success ? "bg-accent text-primary" : "bg-muted text-destructive"}`}
+          role={success ? "status" : "alert"}
+          className={`rounded-xl border p-3 text-sm leading-6 ${success ? "border-teal-ink/15 bg-teal-soft text-teal-ink" : "border-pink-ink/15 bg-pink-soft text-pink-ink"}`}
         >
           {message}
           {success && isRegister && (
@@ -148,7 +167,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       )}
       <Button
         type="submit"
-        disabled={isSubmitting || success}
+        disabled={!hydrated || isSubmitting || success}
         className="w-full"
       >
         {isSubmitting
@@ -157,6 +176,9 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             ? "Create account"
             : "Sign in"}
       </Button>
+      <noscript>
+        <p className="notice">Enable JavaScript to securely use this form.</p>
+      </noscript>
       {!isRegister && (
         <div className="text-sm">
           <Link

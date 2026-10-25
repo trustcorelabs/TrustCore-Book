@@ -1,7 +1,7 @@
 import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { createDatabaseClient } from "@/server/repositories/database-client";
 import { issueAccountToken } from "@/server/account-tokens";
 import { approvedTestDatabase } from "./development-database-target";
 
@@ -38,9 +38,7 @@ suite(
   "Phase A1 PostgreSQL security integration (verified disposable database only)",
   () => {
     beforeAll(async () => {
-      holder.client = new PrismaClient({
-        adapter: new PrismaPg({ connectionString: url!, max: 2 }),
-      });
+      holder.client = createDatabaseClient(url!, 2);
       await holder.client.user.create({
         data: {
           id: userId,

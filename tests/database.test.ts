@@ -23,10 +23,12 @@ async function sql(query: string) {
       PGUSER: decodeURIComponent(connection.username),
       PGPASSWORD: decodeURIComponent(connection.password),
       PGDATABASE: connection.pathname.slice(1),
-      PGCONNECT_TIMEOUT: "5",
+      // Match the application's bounded cold-Neon connection allowance.
+      // Rehearsal measured connection establishment above the old 5s limit.
+      PGCONNECT_TIMEOUT: "15",
       PGSSLMODE: connection.searchParams.get("sslmode") ?? "prefer",
     },
-    timeout: 15000,
+    timeout: 45000,
   });
 }
 function appointment(

@@ -37,6 +37,8 @@ export function localOutboxTarget(
   env: Record<string, string | undefined>,
 ): LocalOutboxTarget | null {
   if (
+    !!env.VERCEL ||
+    !!env.VERCEL_ENV ||
     env.NODE_ENV !== "development" ||
     env.ACCOUNT_EMAIL_PROVIDER !== "local" ||
     env.LOCAL_OUTBOX_ENABLED !== "YES" ||

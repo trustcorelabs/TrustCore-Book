@@ -87,6 +87,25 @@ describe("registration without email verification (repository mocked)", () => {
         "Local server configuration is incomplete. Check the required settings in .env.example.",
     });
   });
+  it("fails closed on missing hosted configuration before account creation", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    mocks.rateLimit.mockRejectedValue(
+      new Error("Server environment is incomplete. See .env.example."),
+    );
+    expect(await registerAccountService(input)).toEqual({
+      error: "Registration is temporarily unavailable. Please try again later.",
+    });
+    expect(mocks.rateLimit).toHaveBeenCalledTimes(1);
+    expect(mocks.createCredentialsUser).not.toHaveBeenCalled();
+    expect(mocks.send).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty action probe before configuration, quota or persistence", async () => {
+    expect(await registerAccountService({})).toHaveProperty("error");
+    expect(mocks.rateLimit).not.toHaveBeenCalled();
+    expect(mocks.createCredentialsUser).not.toHaveBeenCalled();
+    expect(mocks.send).not.toHaveBeenCalled();
+  });
 
   it("identifies a development connection timeout without echoing its details", async () => {
     vi.stubEnv("NODE_ENV", "development");

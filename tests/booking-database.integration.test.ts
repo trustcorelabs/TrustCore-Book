@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { createDatabaseClient } from "@/server/repositories/database-client";
 import {
   createStaffTimeOff,
   replaceStaffSchedule,
@@ -58,9 +58,7 @@ let selectedSlot: { id: string; startsAt: string };
 suite("booking persistence on externally verified disposable Neon only", () => {
   beforeAll(async () => {
     process.env.BOOKING_MVP_ENABLED = "true";
-    holder.client = new PrismaClient({
-      adapter: new PrismaPg({ connectionString: url!, max: 5 }),
-    });
+    holder.client = createDatabaseClient(url!, 5);
     const migrations = await holder.client.$queryRaw<
       { migration_name: string }[]
     >`

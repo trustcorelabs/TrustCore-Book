@@ -5,16 +5,16 @@ import {
   approvedCiDatabase,
 } from "./development-database-target";
 
-const host = "ep-example.c-7.us-east-2.aws.neon.tech";
+const host = "ep-rapid-lake-b406ul3l.c-6.us-east-2.aws.neon.tech";
 const url = `postgresql://test:test@${host}/neondb?sslmode=verify-full`;
 const env = {
   DEV_NEON_TARGET_VERIFIED: "YES",
-  DEV_NEON_PROJECT_ID: "fragrant-hat-50630079",
-  DEV_NEON_BRANCH_ID: "br-dark-brook-b4vdolwu",
+  DEV_NEON_PROJECT_ID: "divine-dawn-11566468",
+  DEV_NEON_BRANCH_ID: "br-nameless-fog-b4cigm8d",
   DEV_NEON_ENDPOINT: host,
 };
 
-describe("new development database test gate", () => {
+describe("disposable rehearsal database test gate", () => {
   it("accepts only the exact externally verified project, branch and direct URL", () => {
     expect(approvedDevelopmentDatabase(url, env)).toBe(true);
     expect(
@@ -49,12 +49,33 @@ describe("new development database test gate", () => {
     ).toBe(false);
     expect(
       approvedDevelopmentDatabase(
-        url.replace("ep-example", "ep-example-pooler"),
+        url.replace(host, host.replace(".", "-pooler.")),
         {
           ...env,
-          DEV_NEON_ENDPOINT: host.replace("ep-example", "ep-example-pooler"),
+          DEV_NEON_ENDPOINT: host.replace(".", "-pooler."),
         },
       ),
+    ).toBe(false);
+  });
+  it.each([
+    "br-bold-heart-b42fnp9k",
+    "br-autumn-queen-b50gugiv",
+    "br-dark-brook-b4vdolwu",
+  ])("rejects parent, Production and obsolete branch %s", (branchId) => {
+    expect(
+      approvedDevelopmentDatabase(url, {
+        ...env,
+        DEV_NEON_BRANCH_ID: branchId,
+      }),
+    ).toBe(false);
+  });
+  it("rejects an endpoint substitution even when the caller supplies matching metadata", () => {
+    const otherHost = "ep-other.c-6.us-east-2.aws.neon.tech";
+    expect(
+      approvedDevelopmentDatabase(url.replace(host, otherHost), {
+        ...env,
+        DEV_NEON_ENDPOINT: otherHost,
+      }),
     ).toBe(false);
   });
 });

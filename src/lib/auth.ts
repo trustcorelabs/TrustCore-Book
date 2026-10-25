@@ -94,11 +94,16 @@ export function authOptions(): NextAuthOptions {
         return session;
       },
       async redirect({ url, baseUrl }) {
-        return url.startsWith("/") && !url.startsWith("//")
-          ? `${baseUrl}${url}`
-          : new URL(url).origin === baseUrl
-            ? url
+        try {
+          const destination = new URL(url, baseUrl);
+          return destination.origin === new URL(baseUrl).origin &&
+            !destination.username &&
+            !destination.password
+            ? destination.toString()
             : baseUrl;
+        } catch {
+          return baseUrl;
+        }
       },
     },
     events: {

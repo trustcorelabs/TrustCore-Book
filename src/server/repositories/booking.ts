@@ -221,110 +221,129 @@ export async function createPublicBooking(input: unknown, clientId: string) {
       from.getTime() > now.getTime() + 60 * 86400_000
     )
       return { error: "Choose a time within the next 60 days." };
-    const result = await db().$transaction(async (tx) => {
-      // Serialize identical requests before availability checks. A second caller
-      // must receive the committed result even when its slot is now occupied.
-      await tx.$queryRaw`SELECT true AS acquired FROM (SELECT pg_advisory_xact_lock(hashtextextended(${`booking:${business.id}:${data.idempotencyKey}`}, 0))) AS guard`;
-      const replay = await tx.bookingRequest.findUnique({
-        where: {
-          businessId_idempotencyKey: {
-            businessId: business.id,
-            idempotencyKey: data.idempotencyKey,
+    const result = await db().$transaction(
+      async (tx) => {
+        // Serialize identical requests before availability checks. A second caller
+        // must receive the committed result even when its slot is now occupied.
+        await tx.$queryRaw`SELECT true AS acquired FROM (SELECT pg_advisory_xact_lock(hashtextextended(${`booking:${business.id}:${data.idempotencyKey}`}, 0))) AS guard`;
+        const replay = await tx.bookingRequest.findUnique({
+          where: {
+            businessId_idempotencyKey: {
+              businessId: business.id,
+              idempotencyKey: data.idempotencyKey,
+            },
           },
-        },
-      });
-      if (replay) {
-        if (replay.payloadHash !== hash) throw new BookingRequestConflict();
-        return replay.appointmentId;
-      }
-      const lockedBusiness = await tx.$queryRaw<
-        { timezone: string; currency: string }[]
-      >`
+        });
+        if (replay) {
+          if (replay.payloadHash !== hash) throw new BookingRequestConflict();
+          return replay.appointmentId;
+        }
+        const lockedBusiness = await tx.$queryRaw<
+          { timezone: string; currency: string }[]
+        >`
         SELECT "timezone", "currency" FROM "Business" WHERE "id" = ${business.id} AND "slug" = ${data.slug} FOR SHARE
       `;
-      if (!lockedBusiness[0]) throw new BookingUnavailable();
-      const lockedService = await tx.$queryRaw<{ id: string }[]>`
+        if (!lockedBusiness[0]) throw new BookingUnavailable();
+        const lockedService = await tx.$queryRaw<{ id: string }[]>`
         SELECT "id" FROM "Service" WHERE "businessId" = ${business.id} AND "id" = ${data.serviceId} FOR SHARE
       `;
-      if (!lockedService.length) throw new BookingUnavailable();
-      const selectedService = await tx.service.findFirst({
-        where: { id: data.serviceId, businessId: business.id, active: true },
-        select: { durationMinutes: true },
-      });
-      if (!selectedService) throw new BookingUnavailable();
-      const to = new Date(
-        from.getTime() + selectedService.durationMinutes * 60_000,
-      );
-      const service = await schedule(tx, business.id, data.serviceId, from, to);
-      if (!service) throw new BookingUnavailable();
-      for (const { staff } of service.staff) {
-        if (slotId(business.id, service.id, staff.id, from) !== data.slotId)
-          continue;
-        const chosen = { startsAt: from, endsAt: to };
-        await tx.$queryRaw`SELECT "id" FROM "Staff" WHERE "businessId" = ${business.id} AND "id" = ${staff.id} FOR UPDATE`;
-        // Re-read under the staff lock so schedule edits cannot race this check.
-        const latest = await schedule(
-          tx,
-          business.id,
-          data.serviceId,
-          chosen.startsAt,
-          chosen.endsAt,
+        if (!lockedService.length) throw new BookingUnavailable();
+        const selectedService = await tx.service.findFirst({
+          where: { id: data.serviceId, businessId: business.id, active: true },
+          select: {
+            id: true,
+            durationMinutes: true,
+            staff: {
+              where: { businessId: business.id },
+              select: { staffId: true },
+            },
+          },
+        });
+        if (!selectedService) throw new BookingUnavailable();
+        const to = new Date(
+          from.getTime() + selectedService.durationMinutes * 60_000,
         );
-        const current = latest?.staff.find(
-          (row) => row.staff.id === staff.id,
-        )?.staff;
-        if (
-          !latest ||
-          !current ||
-          !isBookableInterval({
-            ...chosen,
-            timezone: lockedBusiness[0].timezone,
-            rules: current.availability,
-            exceptions: current.exceptions,
-            appointments: current.appointments,
-          })
-        )
-          throw new BookingUnavailable();
-        const customer = await tx.customer.create({
-          data: {
-            businessId: business.id,
-            name: data.name,
-            email: data.email,
-            phone: data.phone || null,
-          },
-        });
-        const appointment = await tx.appointment.create({
-          data: {
-            businessId: business.id,
-            staffId: staff.id,
-            serviceId: service.id,
-            customerId: customer.id,
-            startsAt: chosen.startsAt,
-            endsAt: chosen.endsAt,
-            price: service.price,
-            currency: lockedBusiness[0].currency,
-            status: "CONFIRMED",
-          },
-        });
-        await tx.bookingRequest.create({
-          data: {
-            businessId: business.id,
-            idempotencyKey: data.idempotencyKey,
-            payloadHash: hash,
-            appointmentId: appointment.id,
-          },
-        });
-        await tx.auditLog.create({
-          data: {
-            businessId: business.id,
-            action: "appointment.booked",
-            entityId: appointment.id,
-          },
-        });
-        return appointment.id;
-      }
-      throw new BookingUnavailable();
-    });
+        // Only candidate IDs are needed before acquiring the staff lock. Loading
+        // the full schedule here duplicated every relation query and extended the
+        // transaction without providing the authoritative availability check.
+        for (const { staffId } of selectedService.staff) {
+          if (
+            slotId(business.id, selectedService.id, staffId, from) !==
+            data.slotId
+          )
+            continue;
+          const chosen = { startsAt: from, endsAt: to };
+          await tx.$queryRaw`SELECT "id" FROM "Staff" WHERE "businessId" = ${business.id} AND "id" = ${staffId} FOR UPDATE`;
+          // Re-read under the staff lock so schedule edits cannot race this check.
+          const latest = await schedule(
+            tx,
+            business.id,
+            data.serviceId,
+            chosen.startsAt,
+            chosen.endsAt,
+          );
+          const current = latest?.staff.find(
+            (row) => row.staff.id === staffId,
+          )?.staff;
+          if (
+            !latest ||
+            !current ||
+            !isBookableInterval({
+              ...chosen,
+              timezone: lockedBusiness[0].timezone,
+              rules: current.availability,
+              exceptions: current.exceptions,
+              appointments: current.appointments,
+            })
+          )
+            throw new BookingUnavailable();
+          const customer = await tx.customer.create({
+            data: {
+              businessId: business.id,
+              name: data.name,
+              email: data.email,
+              phone: data.phone || null,
+            },
+          });
+          const appointment = await tx.appointment.create({
+            data: {
+              businessId: business.id,
+              staffId,
+              serviceId: latest.id,
+              customerId: customer.id,
+              startsAt: chosen.startsAt,
+              endsAt: chosen.endsAt,
+              price: latest.price,
+              currency: lockedBusiness[0].currency,
+              status: "CONFIRMED",
+            },
+          });
+          await tx.bookingRequest.create({
+            data: {
+              businessId: business.id,
+              idempotencyKey: data.idempotencyKey,
+              payloadHash: hash,
+              appointmentId: appointment.id,
+            },
+          });
+          await tx.auditLog.create({
+            data: {
+              businessId: business.id,
+              action: "appointment.booked",
+              entityId: appointment.id,
+            },
+          });
+          return appointment.id;
+        }
+        throw new BookingUnavailable();
+      },
+      {
+        // Rehearsal measured P2028 after 16.5s of execution with fast acquisition.
+        // Booking includes serialized replays, locked schedule reads and four
+        // atomic writes; give this longer operation a bounded execution budget.
+        timeout: 30_000,
+      },
+    );
     return { success: "Booking confirmed.", bookingId: result };
   } catch (error) {
     const constraintConflict =

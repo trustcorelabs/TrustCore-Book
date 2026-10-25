@@ -242,3 +242,17 @@ describe("CURRENT Auth.js JWT/session callbacks (database helpers mocked)", () =
     expect(mocks.revokeSession).toHaveBeenCalledExactlyOnceWith("s1");
   });
 });
+
+it.each([
+  ["/app", "https://preview.example/app"],
+  ["https://preview.example/account", "https://preview.example/account"],
+  ["//attacker.example/app", "https://preview.example"],
+  ["/\\attacker.example", "https://preview.example"],
+  ["https://user:private@preview.example/app", "https://preview.example"],
+  ["https://[malformed", "https://preview.example"],
+])("keeps auth redirects on the same origin for %s", async (url, expected) => {
+  const redirect = authOptions().callbacks!.redirect!;
+  expect(await redirect({ url, baseUrl: "https://preview.example" })).toBe(
+    expected,
+  );
+});

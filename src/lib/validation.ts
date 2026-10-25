@@ -1,19 +1,30 @@
 import { hasPermission } from "@/shared/policies/permissions";
 import { z } from "zod";
 export const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .pipe(z.email("Enter a valid email address").max(254)),
   password: z
     .string()
-    .min(1)
-    .max(72)
-    .refine((v) => new TextEncoder().encode(v).length <= 72),
+    .min(1, "Enter your password")
+    .max(72, "Use at most 72 UTF-8 bytes")
+    .refine(
+      (v) => new TextEncoder().encode(v).length <= 72,
+      "Use at most 72 UTF-8 bytes",
+    ),
 });
 export const registerSchema = loginSchema.extend({
-  name: z.string().trim().min(2).max(100),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Enter your full name (at least 2 characters)")
+    .max(100, "Use at most 100 characters"),
   password: z
     .string()
-    .min(12)
-    .max(72)
+    .min(12, "Use at least 12 characters")
+    .max(72, "Use at most 72 UTF-8 bytes")
     .refine(
       (v) => new TextEncoder().encode(v).length <= 72,
       "Use at most 72 UTF-8 bytes",

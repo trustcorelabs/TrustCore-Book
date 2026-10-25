@@ -70,8 +70,8 @@ export default async function Page({
                   <span className="icon-tile tone-pink">
                     <Sparkles size={20} />
                   </span>
-                  <div>
-                    <h3 className="font-semibold">{s.name}</h3>
+                  <div className="min-w-0">
+                    <h3 className="break-words font-semibold">{s.name}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
                       <Clock3 size={13} className="mr-1 inline" />
                       {s.durationMinutes} minutes

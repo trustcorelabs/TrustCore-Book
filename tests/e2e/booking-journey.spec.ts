@@ -6,7 +6,7 @@ import { businessLocalDate } from "../../src/features/booking-engine/slots";
 test("registration through scheduled public booking and dashboard status management", async ({
   page,
   context,
-}) => {
+}, testInfo) => {
   test.skip(!verified, "Requires verified migrated development database");
   test.setTimeout(240000);
   const suffix = randomUUID();
@@ -162,6 +162,67 @@ test("registration through scheduled public booking and dashboard status managem
         () => document.documentElement.scrollWidth <= window.innerWidth,
       ),
     ).toBe(true);
+    if (testInfo.project.name === "chromium") {
+      for (const width of [375, 768, 1440]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await customer.setViewportSize({ width, height: 1000 });
+        await page.goto(`/app/${businessId}/staff`);
+        await page.locator("details.editor-card > summary").click();
+        expect(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        ).toBe(true);
+        await page.screenshot({
+          path: testInfo.outputPath(`staff-${width}.png`),
+          fullPage: true,
+          caret: "initial",
+        });
+        if (width < 1024) {
+          await page.getByRole("button", { name: "Open navigation" }).click();
+          const drawer = page.getByRole("dialog", {
+            name: "Workspace navigation",
+          });
+          await expect(drawer).toBeVisible();
+          await drawer
+            .getByRole("link", { name: "Appointments", exact: true })
+            .click();
+          await expect(drawer).not.toBeVisible();
+        } else {
+          await page.goto(`/app/${businessId}/appointments`);
+        }
+        await expect(page).toHaveURL(
+          new RegExp(`/app/${businessId}/appointments$`),
+        );
+        await expect(
+          page.getByRole("heading", { name: "Second Customer", exact: true }),
+        ).toBeVisible();
+        expect(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        ).toBe(true);
+        await page.screenshot({
+          path: testInfo.outputPath(`appointments-${width}.png`),
+          fullPage: true,
+          caret: "initial",
+        });
+        await customer.reload();
+        await expect(
+          customer.getByRole("heading", { name, exact: true }),
+        ).toBeVisible();
+        expect(
+          await customer.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        ).toBe(true);
+        await customer.screenshot({
+          path: testInfo.outputPath(`public-booking-${width}.png`),
+          fullPage: true,
+          caret: "initial",
+        });
+      }
+    }
     await customer.close();
   } finally {
     // Delete only this test's random fixture graph, including on partial onboarding failure.

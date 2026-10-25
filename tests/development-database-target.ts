@@ -5,8 +5,8 @@ export function approvedDevelopmentDatabase(
 ) {
   if (
     env.DEV_NEON_TARGET_VERIFIED !== "YES" ||
-    env.DEV_NEON_PROJECT_ID !== "fragrant-hat-50630079" ||
-    env.DEV_NEON_BRANCH_ID !== "br-dark-brook-b4vdolwu" ||
+    env.DEV_NEON_PROJECT_ID !== "divine-dawn-11566468" ||
+    env.DEV_NEON_BRANCH_ID !== "br-nameless-fog-b4cigm8d" ||
     !url
   )
     return false;
@@ -17,6 +17,8 @@ export function approvedDevelopmentDatabase(
       !!target.username &&
       !!target.password &&
       target.hostname === env.DEV_NEON_ENDPOINT &&
+      target.hostname ===
+        "ep-rapid-lake-b406ul3l.c-6.us-east-2.aws.neon.tech" &&
       /^ep-[a-z0-9-]+(?:\.[a-z0-9-]+){1,3}\.aws\.neon\.tech$/.test(
         target.hostname,
       ) &&

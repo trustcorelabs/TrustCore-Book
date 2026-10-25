@@ -181,4 +181,27 @@ describe("Auth.js route throttling (downstream Auth.js dispatch mocked)", () => 
     expect(response.status).toBe(200);
     expect(mocks.rateLimit).not.toHaveBeenCalled();
   });
+
+  it("returns a private 503 when GET auth configuration is invalid", async () => {
+    mocks.authOptions.mockImplementation(() => {
+      throw new Error("private configuration details");
+    });
+    const response = await GET(
+      request("GET", "providers"),
+      context("providers"),
+    );
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(await response.json()).toEqual({
+      error: "Authentication temporarily unavailable. Try again later.",
+    });
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("contains asynchronous auth dispatch failures without exposing details", async () => {
+    mocks.dispatch.mockRejectedValue(new Error("private database URL"));
+    const response = await GET(request("GET", "session"), context("session"));
+    expect(response.status).toBe(503);
+    expect(await response.text()).not.toContain("private database URL");
+  });
 });

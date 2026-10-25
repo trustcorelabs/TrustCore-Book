@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { createDatabaseClient } from "@/server/repositories/database-client";
 import { issueAccountToken } from "@/server/account-tokens";
 import { approvedTestDatabase } from "./development-database-target";
 
@@ -43,9 +43,7 @@ suite(
   "Phase A2 PostgreSQL security integration (externally verified disposable target only)",
   () => {
     beforeAll(async () => {
-      holder.client = new PrismaClient({
-        adapter: new PrismaPg({ connectionString: url!, max: 4 }),
-      });
+      holder.client = createDatabaseClient(url!, 4);
       const migrations = await holder.client.$queryRaw<
         { migration_name: string }[]
       >`

@@ -147,3 +147,13 @@ describe("local outbox target guards (pure, no database connection)", () => {
     ).toThrow();
   });
 });
+
+it.each(["preview", "production"])(
+  "rejects hosted %s even if NODE_ENV is accidentally development",
+  (environment) => {
+    expect(
+      localOutboxTarget({ ...env, VERCEL: "1", VERCEL_ENV: environment }),
+    ).toBeNull();
+    expect(localOutboxTarget({ ...env, VERCEL_ENV: environment })).toBeNull();
+  },
+);

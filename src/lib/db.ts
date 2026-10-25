@@ -1,17 +1,10 @@
 import "server-only";
-import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import type { PrismaClient } from "@/generated/prisma/client";
+import { createDatabaseClient } from "@/server/repositories/database-client";
 import { getEnv } from "./env";
 const globalDb = globalThis as unknown as { prisma?: PrismaClient };
 export function db() {
   if (!globalDb.prisma)
-    globalDb.prisma = new PrismaClient({
-      adapter: new PrismaPg({
-        connectionString: getEnv().DATABASE_URL,
-        max: 5,
-        connectionTimeoutMillis: 15000,
-        idleTimeoutMillis: 10000,
-      }),
-    });
+    globalDb.prisma = createDatabaseClient(getEnv().DATABASE_URL);
   return globalDb.prisma;
 }

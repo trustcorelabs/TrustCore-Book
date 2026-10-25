@@ -113,11 +113,71 @@ describe("authentication form feedback (server and Auth.js transport mocked)", (
     await user.type(screen.getByLabelText("Password"), "wrong password");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
     await waitFor(() => expect(mocks.signIn).toHaveBeenCalledOnce());
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(screen.getByRole("alert")).toHaveTextContent(
       "Unable to sign in. Check your details or try again later.",
     );
-    expect(screen.getByRole("status")).not.toHaveTextContent(
+    expect(screen.getByRole("alert")).not.toHaveTextContent(
       "CredentialsSignin",
     );
+  });
+
+  it("connects friendly validation errors to their fields without contacting the server", async () => {
+    render(<AuthForm mode="register" />);
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Create account" }));
+    await waitFor(() =>
+      expect(screen.getByLabelText("Full name")).toHaveAttribute(
+        "aria-invalid",
+        "true",
+      ),
+    );
+    expect(screen.getByLabelText("Full name")).toHaveAccessibleDescription(
+      "Enter your full name (at least 2 characters)",
+    );
+    expect(screen.getByLabelText("Email address")).toHaveAccessibleDescription(
+      "Enter a valid email address",
+    );
+    expect(screen.getByLabelText("Password")).toHaveAccessibleDescription(
+      "At least 12 characters. Up to 72 UTF-8 bytes. Use at least 12 characters",
+    );
+    expect(mocks.register).not.toHaveBeenCalled();
+    expect(mocks.signIn).not.toHaveBeenCalled();
+  });
+
+  it("prevents duplicate submissions while pending and allows recovery after a server failure", async () => {
+    let finish!: (value: { error: string }) => void;
+    mocks.register.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    render(<AuthForm mode="register" />);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Full name"), "Owner");
+    await user.type(
+      screen.getByLabelText("Email address"),
+      "owner@example.test",
+    );
+    await user.type(screen.getByLabelText("Password"), "a long test password");
+    await user.click(screen.getByRole("button", { name: "Create account" }));
+    expect(screen.getByRole("button", { name: "Please wait…" })).toBeDisabled();
+    expect(screen.getByLabelText("Email address")).toBeDisabled();
+    expect(mocks.register).toHaveBeenCalledOnce();
+    finish({
+      error: "Registration is temporarily unavailable. Please try again later.",
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Registration is temporarily unavailable.",
+      ),
+    );
+    expect(
+      screen.getByRole("button", { name: "Create account" }),
+    ).toBeEnabled();
+    expect(screen.getByLabelText("Email address")).toHaveValue(
+      "owner@example.test",
+    );
+    expect(screen.getByLabelText("Email address")).toBeEnabled();
   });
 });

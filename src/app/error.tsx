@@ -18,7 +18,7 @@ export default function ErrorPage({
         <h1 className="text-3xl font-bold">Let’s try that again.</h1>
         <p className="my-5 text-sm leading-7 text-muted-foreground">
           We couldn’t load this page. Refresh it to try again, or head back to
-          your workspace.
+          the home page.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <Button onClick={reset}>
@@ -26,7 +26,7 @@ export default function ErrorPage({
             Try again
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/app">Your workspace</Link>
+            <Link href="/">Back to home</Link>
           </Button>
         </div>
       </div>
