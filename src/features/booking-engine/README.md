@@ -1,14 +1,13 @@
 # Booking availability engine
 
-Owner: **Shared**. Priority: MVP. Status: **Not implemented — scaffold only**.
+Slots, transactional booking, signed management links, cancellation and manager/customer rescheduling are implemented behind `BOOKING_MVP_ENABLED`.
 
-Contracts and overlap constraint only; no slot computation or booking mutation.
+- The engine handles business-local schedules, DST boundaries, time off, lead time, booking horizons and service/provider buffers.
+- Booking uses idempotency records and a database exclusion constraint over occupied intervals. Cancellation releases occupied slots.
+- Customer rescheduling obtains a signed authorization lasting at most 15 minutes from the management link. The server assigns its operation key and original appointment start. The transaction checks expiry and the original start, serializes operation keys, and rejects changed-payload replays.
+- Prices, durations, packages and add-ons are snapshotted on booking. Moving preserves the purchased offering.
+- Authorization, rate limits and domain logic live in services; database writes remain in `src/server/repositories/`.
+- Hosted activation requires a verified migrated disposable-target rehearsal and explicit approval. A passing unit suite is not a concurrency or production certification.
+- Group bookings, room/resource capacity, recurring courses and waitlists are not implemented.
 
-- UI route: `/app/[businessId]/booking-engine`.
-- Proposed operation: `getAvailability` in `contracts.ts`; request and response Zod schemas are transport-safe.
-- Server interface: `server/service.ts`; no fake implementation is supplied.
-- Dependencies: availability,staff,services,localization.
-- Acceptance: Reviewed DST rules, idempotency and concurrent conflict tests precede implementation.
-- Data access: use `src/server/repositories/` through an authorized service; client hooks go in the module's `hooks/` directory only when a real client flow exists. Do not create empty caches or placeholder mutations.
-- Existing workflows remain in `src/server/services.ts`, `queries.ts`, and `lib/auth.ts`; this contract does not claim they already implement the proposed interface or versioned API envelope.
-- Review gate: schema, auth, membership or booking interface changes require both developers. These extension interfaces are **proposed**, not approved for downstream runtime dependencies.
+The historical `contracts.ts` and `server/service.ts` extension interfaces are scaffolding; runtime workflows use the existing server services and repositories. This is one application maintained by the sole developer.

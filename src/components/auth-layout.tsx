@@ -34,18 +34,18 @@ export function AuthLayout({
         <section className="relative hidden min-w-0 lg:block">
           <p className="eyebrow mb-5 flex items-center gap-2">
             <Sparkles size={14} />
-            Appointments · Clients · Growth
+            Appointments · Clients · Team
           </p>
           <h2 className="max-w-lg text-[clamp(2.5rem,4vw,3rem)] font-bold leading-[1.12]">
-            Less busywork.
+            A clearer way to work.
             <br />
-            More good days.
+            One business workspace.
             <br />
-            <span className="text-primary-ink">Room to grow.</span>
+            <span className="text-primary-ink">Built for your team.</span>
           </h2>
           <p className="mt-6 max-w-md text-base leading-7 text-muted-foreground">
-            Your people, your services, your next great day. Bring it all
-            together in a workspace that feels like you.
+            Keep your appointments, customers, services and staff organized in
+            one place.
           </p>
           <div
             aria-hidden="true"
@@ -56,7 +56,7 @@ export function AuthLayout({
             </div>
             <div className="mb-6 flex items-center justify-between">
               <span className="text-sm font-semibold">
-                A better working day
+                Your business essentials
               </span>
               <span className="rounded-full bg-green-soft px-3 py-1 text-[10px] font-bold text-green-ink">
                 ALL CONNECTED
@@ -87,7 +87,7 @@ export function AuthLayout({
                 <Check size={17} />
               </span>
               <span className="text-xs font-medium">
-                Less admin. More room for good work.
+                Appointments, customers and staff in one place.
               </span>
             </div>
           </div>

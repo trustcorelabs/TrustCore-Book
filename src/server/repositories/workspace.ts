@@ -105,7 +105,8 @@ export function updateCatalogRecord(
   return db().$transaction(async (tx) => {
     await requireCurrentManager(tx, scope);
     const { id } = record.input;
-    if (record.input.active) await assertCatalogEntitlement(tx, scope, record.kind, id);
+    if (record.input.active)
+      await assertCatalogEntitlement(tx, scope, record.kind, id);
     let result: { count: number };
     if (record.kind === "services") {
       await tx.$queryRaw`SELECT "id" FROM "Service" WHERE "businessId"=${scope.businessId} AND "id"=${id} FOR UPDATE`;
@@ -221,7 +222,14 @@ export function transitionAppointment(
         entityId: id,
       },
     });
-    if (status === "CONFIRMED" || status === "CANCELLED") await enqueueAppointmentNotifications(tx, scope.businessId, id, status, event.id);
+    if (status === "CONFIRMED" || status === "CANCELLED")
+      await enqueueAppointmentNotifications(
+        tx,
+        scope.businessId,
+        id,
+        status,
+        event.id,
+      );
   });
 }
 export function createStaffTimeOff(
@@ -295,7 +303,8 @@ export function insertRecord(scope: TenantContext, record: NewRecord) {
   return db().$transaction(async (tx) => {
     await requireCurrentManager(tx, scope);
     const businessId = scope.businessId;
-    if (record.kind === "services" || record.kind === "staff") await assertCatalogEntitlement(tx, scope, record.kind);
+    if (record.kind === "services" || record.kind === "staff")
+      await assertCatalogEntitlement(tx, scope, record.kind);
     let entity: { id: string };
     switch (record.kind) {
       case "services": {

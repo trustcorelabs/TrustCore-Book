@@ -14,5 +14,10 @@ test-results/
 blob-report/
 *.log
 .vercel
+.neon/
+.neon
+.vercel-backup-*/
+docs/PRODUCTION_RELEASE_RESULT_*.md
+docs/RELEASE_CANDIDATE_*.md
 
 .next-*/

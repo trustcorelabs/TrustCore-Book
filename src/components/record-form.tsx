@@ -1,5 +1,6 @@
 "use client";
 import { CatalogFields, type CatalogOption } from "./catalog-fields";
+import { useVocabulary } from "@/features/industries/vocabulary-context";
 import { Plus, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -21,6 +22,7 @@ export function RecordForm({
   categories?: { id: string; name: string }[];
   catalog?: CatalogOption[];
 }) {
+  const words = useVocabulary();
   const hydrated = useHydrated();
   const [offerKind, setOfferKind] = useState("SERVICE");
   const [busy, setBusy] = useState(false);
@@ -61,11 +63,11 @@ export function RecordForm({
           <Plus size={18} />
         </span>
         Add{" "}
-        {kind === "services"
-          ? "a service"
-          : kind === "staff"
-            ? "a staff member"
-            : "a customer"}
+        {{
+          services: words.service,
+          staff: words.provider,
+          customers: words.customer,
+        }[kind].toLowerCase()}
         <ChevronDown
           size={16}
           className="ml-auto transition-transform group-open:rotate-180"

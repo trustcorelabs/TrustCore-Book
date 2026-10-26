@@ -16,6 +16,11 @@ import { onboard, updateBusiness } from "@/server/actions";
 import { Button } from "./ui/button";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { Input } from "./ui/input";
+import {
+  businessTypes,
+  industryPreset,
+  vocabularyFor,
+} from "@/features/industries/presets";
 type Values = z.infer<typeof businessSchema>;
 const subscribe = () => () => {};
 const commonTimezones = [
@@ -47,10 +52,12 @@ export function BusinessForm({
   businessId,
   initial,
   readOnly = false,
+  previewOnly = false,
 }: {
   businessId?: string;
   initial?: Values;
   readOnly?: boolean;
+  previewOnly?: boolean;
 }) {
   const hydrated = useHydrated();
   const {
@@ -66,6 +73,8 @@ export function BusinessForm({
     defaultValues: initial ?? {
       country: "LK",
       timezone: "Asia/Colombo",
+      businessType: "GENERAL",
+      terminologyMode: "INDUSTRY",
       name: "",
       slug: "",
     },
@@ -74,6 +83,10 @@ export function BusinessForm({
   const [message, setMessage] = useState("");
   const [slugEdited, setSlugEdited] = useState(!!businessId || !!initial?.slug);
   const slug = useWatch({ control, name: "slug" });
+  const businessType = useWatch({ control, name: "businessType" });
+  const terminologyMode = useWatch({ control, name: "terminologyMode" });
+  const preset = industryPreset(businessType);
+  const words = vocabularyFor({ businessType, terminologyMode });
   const origin = useSyncExternalStore(
     subscribe,
     () => window.location.origin,
@@ -82,7 +95,9 @@ export function BusinessForm({
   const [timezones, setTimezones] = useState(commonTimezones);
   async function next() {
     const valid = await trigger(
-      step === 0 ? ["name", "slug"] : ["country", "timezone"],
+      step === 0
+        ? ["name", "slug", "businessType", "terminologyMode"]
+        : ["country", "timezone"],
     );
     if (valid) {
       setStep((v) => Math.min(2, v + 1));
@@ -90,6 +105,10 @@ export function BusinessForm({
     }
   }
   async function submit(v: Values) {
+    if (previewOnly) {
+      setMessage("Design preview only. No workspace has been created.");
+      return;
+    }
     setMessage("");
     try {
       const result = businessId
@@ -172,6 +191,41 @@ export function BusinessForm({
         className="space-y-5"
       >
         <div hidden={!businessId && step !== 0} className="space-y-5">
+          <div>
+            <label htmlFor="business-type">Business type</label>
+            <select
+              id="business-type"
+              className="input"
+              {...register("businessType")}
+              aria-describedby="industry-guidance"
+            >
+              {businessTypes.map((id) => (
+                <option key={id} value={id}>
+                  {industryPreset(id).label}
+                </option>
+              ))}
+            </select>
+            <p
+              id="industry-guidance"
+              className="mt-2 text-xs leading-6 text-muted-foreground"
+            >
+              {preset.guidance}
+            </p>
+          </div>
+          <div>
+            <label htmlFor="terminology-mode">Workspace terminology</label>
+            <select
+              id="terminology-mode"
+              className="input"
+              {...register("terminologyMode")}
+            >
+              <option value="INDUSTRY">Use business-type terminology</option>
+              <option value="STANDARD">Use standard terminology</option>
+            </select>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {words.team} · {words.services} · {words.customers}
+            </p>
+          </div>
           <div>
             <label htmlFor="business-name">Business name</label>
             <Input
@@ -320,6 +374,11 @@ export function BusinessForm({
           <dl className="divide-y divide-border rounded-2xl border border-border bg-background px-5">
             {[
               ["Business", getValues("name")],
+              ["Business type", preset.label],
+              [
+                "Workspace terminology",
+                `${words.team} · ${words.services} · ${words.customers}`,
+              ],
               ["Booking address", `${origin}/book/${getValues("slug")}`],
               ["Country", markets[getValues("country")].name],
               ["Time zone", getValues("timezone")],
@@ -365,7 +424,9 @@ export function BusinessForm({
                   ? "Saving…"
                   : businessId
                     ? "Save settings"
-                    : "Create business"}
+                    : previewOnly
+                      ? "Finish preview"
+                      : "Create business"}
               </Button>
             )}
           </div>

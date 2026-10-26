@@ -30,6 +30,11 @@ export default async function Page({
         createdAt: a.createdAt.toISOString(),
       }))}
       appointments={workspace.appointments}
+      configuredStaffCount={
+        workspace.staff.filter(
+          (person) => person.active && person.availability.length > 0,
+        ).length
+      }
     />
   );
 }

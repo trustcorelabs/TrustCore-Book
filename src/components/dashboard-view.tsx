@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { vocabularyFor } from "@/features/industries/presets";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -19,7 +20,13 @@ import { localTime } from "@/lib/utils";
 import { businessLocalDate } from "@/features/booking-engine/slots";
 export type DashboardViewProps = {
   businessId: string;
-  business: { name: string; timezone: string; currency: string };
+  business: {
+    name: string;
+    timezone: string;
+    currency: string;
+    businessType?: string;
+    terminologyMode?: string;
+  };
   userName: string;
   manage: boolean;
   counts: {
@@ -42,6 +49,7 @@ export type DashboardViewProps = {
     actor: string;
     createdAt: string;
   }[];
+  configuredStaffCount?: number;
   now?: Date;
 };
 export function DashboardView({
@@ -51,9 +59,11 @@ export function DashboardView({
   manage,
   counts,
   appointments,
+  configuredStaffCount = 0,
   now = new Date(),
   recentActivity = [],
 }: DashboardViewProps) {
+  const words = vocabularyFor(business);
   const base = `/app/${businessId}`;
   const upcoming = appointments
     .filter(
@@ -69,31 +79,40 @@ export function DashboardView({
   ).length;
   const setup = [
     {
-      title: "Create your service menu",
-      note: "Services, durations & prices",
+      title: `Add your first ${words.service.toLowerCase()}`,
+      note: `${words.services}, durations & prices`,
       done: counts.services > 0,
       path: "services",
       icon: Sparkles,
       tone: "purple",
     },
     {
-      title: "Introduce your team",
-      note: "The people behind the care",
-      done: counts.staff > 0,
+      title: `Configure ${words.team.toLowerCase()} and working hours`,
+      note: "People and working hours",
+      done: configuredStaffCount > 0,
       path: "staff",
       icon: Users,
       tone: "teal",
     },
     {
-      title: "Add your first client",
-      note: "Build your customer directory",
+      title: `Add your first ${words.customer.toLowerCase()}`,
+      note: `Build your ${words.customer.toLowerCase()} directory`,
       done: counts.customers > 0,
       path: "customers",
       icon: Contact,
       tone: "sky",
     },
+    {
+      title: "Review appointments",
+      note: "Open your appointment book · action only",
+      done: false,
+      path: "appointments",
+      icon: CalendarDays,
+      tone: "amber",
+    },
   ];
-  const complete = setup.filter((s) => s.done).length;
+  // A page visit is not persisted, so the review action is not counted as done.
+  const complete = setup.slice(0, 3).filter((s) => s.done).length;
   return (
     <>
       <div className="mb-7 flex flex-wrap items-start justify-between gap-5">
@@ -104,7 +123,7 @@ export function DashboardView({
             <span className="text-primary-ink">.</span>
           </h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            A little clarity for your day at {business.name}.
+            Your appointments and business records at {business.name}.
           </p>
         </div>
         <div className="flex min-h-11 items-center gap-2 rounded-xl border border-border bg-card px-4 text-xs font-medium text-muted-foreground">
@@ -131,23 +150,23 @@ export function DashboardView({
             tone: "purple",
           },
           {
-            title: "Clients",
+            title: words.customers,
             count: counts.customers,
             icon: Contact,
             path: "customers",
-            note: "In your customer directory",
+            note: `In your ${words.customer.toLowerCase()} directory`,
             tone: "teal",
           },
           {
-            title: "Active services",
+            title: `Active ${words.services.toLowerCase()}`,
             count: counts.services,
             icon: Sparkles,
             path: "services",
-            note: "In your service menu",
+            note: `In your ${words.service.toLowerCase()} menu`,
             tone: "sky",
           },
           {
-            title: "Active staff",
+            title: `Active ${words.team.toLowerCase()}`,
             count: counts.staff,
             icon: Users,
             path: "staff",
@@ -185,7 +204,7 @@ export function DashboardView({
             <p className="text-sm font-semibold">
               {todayCount
                 ? `${todayCount} appointment${todayCount === 1 ? "" : "s"} today`
-                : "A little room for what’s next."}
+                : "No appointments today"}
             </p>
             <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
               Today’s non-cancelled visits in the latest 100 scheduled records ·{" "}
@@ -200,16 +219,16 @@ export function DashboardView({
           </Link>
         </Button>
       </Card>
-      {complete < 3 && (
+      {manage && (
         <Card className="mb-6 p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <Badge>Make it yours</Badge>
+              <Badge>Get set up</Badge>
               <h2 className="mt-3 text-lg font-bold">
-                Small steps. A strong foundation.
+                Complete your workspace setup.
               </h2>
               <p className="mt-1 text-xs leading-6 text-muted-foreground">
-                {complete} of 3 essentials complete. Start where you are.
+                {complete} of 3 setup steps complete. Review is an action.
               </p>
             </div>
             <progress
@@ -219,10 +238,10 @@ export function DashboardView({
               max={3}
             />
           </div>
-          <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {setup.map(({ title, note, done, path, icon: Icon, tone }) => (
               <Link
-                href={`${base}/${path}`}
+                href={`${base}/${path}${path === "appointments" ? "" : "#add-record"}`}
                 key={path}
                 className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-background/60 p-4 transition-colors hover:border-primary/30"
               >
@@ -296,7 +315,7 @@ export function DashboardView({
                   <CalendarDays size={23} />
                 </span>
                 <h3 className="text-sm font-semibold">
-                  Your next chapter starts with a visit.
+                  No upcoming appointments
                 </h3>
                 <p className="mt-2 max-w-xs text-xs leading-6 text-muted-foreground">
                   Upcoming recorded appointments will appear here. There are
@@ -313,28 +332,39 @@ export function DashboardView({
             )}
           </Card>
           <Card>
-            <h2 className="text-base font-bold">A little less clicking</h2>
+            <h2 className="text-base font-bold">Quick actions</h2>
             <p className="mt-1 text-xs leading-6 text-muted-foreground">
-              The essentials, close at hand.
+              Open the tools you use most.
             </p>
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              {setup.map(({ path, icon: Icon, tone }) => (
-                <Link
-                  key={path}
-                  href={`${base}/${path}`}
-                  className="flex min-h-14 items-center gap-2 rounded-xl border border-border p-3 transition-colors hover:bg-background"
-                >
-                  <span
-                    className={`grid size-8 shrink-0 place-items-center rounded-lg tone-${tone}`}
+              {setup
+                .filter((step) => step.path !== "appointments")
+                .map(({ path, icon: Icon, tone }) => (
+                  <Link
+                    key={path}
+                    href={`${base}/${path}${manage ? "#add-record" : ""}`}
+                    className="flex min-h-14 items-center gap-2 rounded-xl border border-border p-3 transition-colors hover:bg-background"
                   >
-                    <Icon size={15} />
-                  </span>
-                  <span className="text-xs font-medium">
-                    {manage ? "Manage" : "View"}{" "}
-                    {path === "customers" ? "clients" : path}
-                  </span>
-                </Link>
-              ))}
+                    <span
+                      className={`grid size-8 shrink-0 place-items-center rounded-lg tone-${tone}`}
+                    >
+                      <Icon size={15} />
+                    </span>
+                    <span className="text-xs font-medium">
+                      {manage
+                        ? ({
+                            customers: `Add ${words.customer.toLowerCase()}`,
+                            staff: `Add ${words.provider.toLowerCase()}`,
+                            services: `Add ${words.service.toLowerCase()}`,
+                          }[path] ?? path)
+                        : ({
+                            customers: `View ${words.customers.toLowerCase()}`,
+                            staff: `View ${words.team.toLowerCase()}`,
+                            services: `View ${words.services.toLowerCase()}`,
+                          }[path] ?? path)}
+                    </span>
+                  </Link>
+                ))}
             </div>
           </Card>
         </div>

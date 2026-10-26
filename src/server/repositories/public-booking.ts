@@ -5,6 +5,8 @@ export function findPublicBusiness(slug: string) {
   return db().business.findUnique({
     where: { slug },
     select: {
+      businessType: true,
+      terminologyMode: true,
       name: true,
       timezone: true,
       currency: true,

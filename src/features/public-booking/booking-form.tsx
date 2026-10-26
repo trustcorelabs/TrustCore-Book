@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useVocabulary } from "@/features/industries/vocabulary-context";
 import { useState } from "react";
 import { useHydrated } from "@/hooks/use-hydrated";
 import {
@@ -54,6 +55,8 @@ export function BookingForm({
   addons?: Service[];
   policy?: BookingPolicy;
 }) {
+  const words = useVocabulary();
+  const providerLabel = words.team === "Staff" ? "Staff" : words.provider;
   const mounted = useHydrated();
   const [addonIds, setAddonIds] = useState<string[]>([]),
     [categoryId, setCategoryId] = useState("");
@@ -194,8 +197,8 @@ export function BookingForm({
           className="grid grid-cols-3 gap-x-2 gap-y-4 sm:grid-cols-6"
         >
           {[
-            "Service",
-            "Staff",
+            words.service,
+            providerLabel,
             "Date",
             "Time",
             "Your details",
@@ -277,7 +280,9 @@ export function BookingForm({
               </h2>
               {categories.length > 0 && (
                 <div className="mb-4">
-                  <label htmlFor="booking-category">Service category</label>
+                  <label htmlFor="booking-category">
+                    {words.service} category
+                  </label>
                   <select
                     id="booking-category"
                     className="input"
@@ -312,7 +317,7 @@ export function BookingForm({
                     className="flex items-center gap-2"
                   >
                     <Sparkles size={15} className="text-pink-ink" />
-                    Service
+                    {words.service}
                   </label>
                   <select
                     id="booking-service"
@@ -341,7 +346,7 @@ export function BookingForm({
                     className="flex items-center gap-2"
                   >
                     <UserRound size={15} className="text-teal-ink" />
-                    Staff preference
+                    {providerLabel} preference
                   </label>
                   <select
                     id="booking-staff"
@@ -363,7 +368,8 @@ export function BookingForm({
                     )}
                   </select>
                   <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
-                    Available staff choices appear after checking your date.
+                    Available {words.team.toLowerCase()} choices appear after
+                    checking your date.
                   </p>
                 </div>
               </div>
@@ -570,7 +576,7 @@ export function BookingForm({
           >
             <p className="eyebrow mb-4">Your appointment</p>
             <h2 className="text-lg font-semibold">
-              {chosenService?.name ?? "Choose a service"}
+              {chosenService?.name ?? `Choose a ${words.service.toLowerCase()}`}
             </h2>
             {chosenService && (
               <>

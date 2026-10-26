@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useVocabulary } from "@/features/industries/vocabulary-context";
 import { usePathname, useRouter } from "next/navigation";
 import { useRef } from "react";
 import {
@@ -51,6 +52,12 @@ export function WorkspaceNav({
   canManageMembers: boolean;
   businesses: { id: string; name: string }[];
 }) {
+  const words = useVocabulary();
+  const labels: Record<string, string> = {
+    services: words.services,
+    staff: words.team,
+    customers: words.customers,
+  };
   const hydrated = useHydrated();
   const path = usePathname();
   const router = useRouter();
@@ -118,7 +125,7 @@ export function WorkspaceNav({
               >
                 <item.icon size={17} aria-hidden="true" />
               </span>
-              {item.label}
+              {labels[item.path] ?? item.label}
               {active && (
                 <span className="ml-auto size-1.5 rounded-full bg-primary" />
               )}

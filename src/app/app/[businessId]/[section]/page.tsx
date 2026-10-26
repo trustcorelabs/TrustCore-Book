@@ -2,6 +2,8 @@ import {
   BookingPolicyForm,
   CategoryManager,
 } from "@/components/catalog-settings";
+import { SetupGuidance } from "@/features/industries/setup-guidance";
+import { vocabularyFor } from "@/features/industries/presets";
 import { modules } from "@/features/registry";
 import { ModulePlaceholder } from "@/components/module-placeholder";
 import { ModuleDirectory } from "@/components/module-directory";
@@ -28,7 +30,7 @@ const config = {
   },
   services: {
     title: "Your service menu",
-    desc: "The craft, care and expertise that make your business yours.",
+    desc: "Your offerings, durations, prices and preparation time.",
   },
   staff: {
     title: "Meet your team",
@@ -72,11 +74,17 @@ export default async function Page({
   const data = await getWorkspace(businessId);
   const { business, member } = data;
   const manage = canManage(member.role);
+  const words = vocabularyFor(business);
+  const titles: Record<string, string> = {
+    services: `Your ${words.service.toLowerCase()} menu`,
+    staff: `Your ${words.team.toLowerCase()}`,
+    customers: `Your ${words.customers.toLowerCase()}`,
+  };
   const count = key === "settings" ? null : data[key].length;
   return (
     <>
       <PageHeading
-        title={config[key].title}
+        title={titles[key] ?? config[key].title}
         description={config[key].desc}
         action={
           count !== null ? (
@@ -114,6 +122,12 @@ export default async function Page({
               businessId={businessId}
               readOnly={!manage}
               initial={{
+                businessType: business.businessType as z.infer<
+                  typeof businessSchema
+                >["businessType"],
+                terminologyMode: business.terminologyMode as z.infer<
+                  typeof businessSchema
+                >["terminologyMode"],
                 name: business.name,
                 slug: business.slug,
                 country: business.country as z.infer<
@@ -153,6 +167,9 @@ export default async function Page({
         />
       ) : (
         <>
+          {manage && key === "services" && !data.services.length && (
+            <SetupGuidance business={business} />
+          )}
           {manage && key === "services" && (
             <CategoryManager
               businessId={businessId}
@@ -185,8 +202,8 @@ export default async function Page({
                 title="Make room for your craft"
                 description={
                   manage
-                    ? "Add your first service with a name, duration and price using the form above."
-                    : "Your business owner can add services to this menu."
+                    ? `Add your first ${words.service.toLowerCase()} with a name, duration and price using the form above.`
+                    : `Your business owner can add ${words.services.toLowerCase()} to this menu.`
                 }
               />
             ))}
@@ -226,15 +243,15 @@ export default async function Page({
                 title="Good work starts with great people"
                 description={
                   manage
-                    ? "Add a staff member above, then assign services and working hours."
-                    : "Your business owner can introduce staff to this workspace."
+                    ? `Add a ${words.provider.toLowerCase()} above, then assign ${words.services.toLowerCase()} and working hours.`
+                    : `Your business owner can introduce your ${words.team.toLowerCase()} to this workspace.`
                 }
               />
             ))}
           {key === "customers" && (
             <DataTable
               columns={[
-                { key: "name", label: "Customer", hrefKey: "profileUrl" },
+                { key: "name", label: words.customer, hrefKey: "profileUrl" },
                 { key: "email", label: "Email address" },
                 { key: "phone", label: "Phone number" },
               ]}

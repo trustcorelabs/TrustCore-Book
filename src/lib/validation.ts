@@ -1,5 +1,6 @@
 import { hasPermission } from "@/shared/policies/permissions";
 import { z } from "zod";
+import { businessTypes } from "@/features/industries/presets";
 export const loginSchema = z.object({
   email: z
     .string()
@@ -51,6 +52,8 @@ export const markets = {
   AU: { name: "Australia", currency: "AUD", timezone: "Australia/Sydney" },
 } as const;
 export const businessSchema = z.object({
+  businessType: z.enum(businessTypes).optional(),
+  terminologyMode: z.enum(["STANDARD", "INDUSTRY"]).optional(),
   name: z.string().trim().min(2).max(100),
   slug: z
     .string()

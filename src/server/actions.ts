@@ -202,14 +202,32 @@ export async function updateServiceCategory(
   return result;
 }
 
-export async function updateBookingEmailPreference(token: unknown, enabled: unknown) {
-  const { updateCustomerNotificationPreference } = await import("./booking-management");
-  return updateCustomerNotificationPreference(token, enabled, await bookingClientId());
+export async function updateBookingEmailPreference(
+  token: unknown,
+  enabled: unknown,
+) {
+  const { updateCustomerNotificationPreference } =
+    await import("./booking-management");
+  return updateCustomerNotificationPreference(
+    token,
+    enabled,
+    await bookingClientId(),
+  );
 }
-export async function changeBillingTrial(businessId: string, cancel: boolean) {
+export async function changeBillingTrial(
+  businessId: string,
+  cancel: boolean,
+): Promise<ActionResult> {
   const { changeSandboxTrial } = await import("./billing");
   if (typeof cancel !== "boolean") return { error: "Invalid trial request." };
   const result = await changeSandboxTrial(businessId, cancel);
+  if (result.success) revalidatePath(`/app/${businessId}`, "layout");
+  return result;
+}
+
+export async function addCustomerNote(businessId: string, input: unknown) {
+  const { addCustomerNoteService } = await import("./customer-notes");
+  const result = await addCustomerNoteService(businessId, input);
   if (result.success) revalidatePath(`/app/${businessId}`, "layout");
   return result;
 }

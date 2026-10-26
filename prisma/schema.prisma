@@ -37,10 +37,13 @@ model User {
   sentInvitations BusinessInvitation[] @relation("InvitationInviter")
   acceptedInvitations BusinessInvitation[] @relation("InvitationAccepter")
   sessions RefreshSession[]
+  customerNotes CustomerNote[]
   securityTokens AccountSecurityToken[]
   auditLogs AuditLog[]
 }
 model Business {
+  businessType String @default("GENERAL")
+  terminologyMode String @default("STANDARD")
   id String @id @default(cuid())
   name String
   slug String @unique
@@ -63,6 +66,7 @@ model Business {
   notificationJobs NotificationJob[]
   payments SandboxPayment[]
   subscription SandboxSubscription?
+  customerNotes CustomerNote[]
   categories ServiceCategory[]
   auditLogs AuditLog[]
 }
@@ -140,6 +144,7 @@ model StaffService {
   @@index([businessId, serviceId])
 }
 model Customer {
+  notes CustomerNote[]
   appointmentEmailOptIn Boolean @default(false)
   id String @id @default(cuid())
   businessId String
@@ -384,4 +389,18 @@ model SandboxSubscriptionEvent {
   payloadHash String
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   subscription SandboxSubscription @relation(fields: [businessId, subscriptionId], references: [businessId, id], onDelete: Restrict)
+}
+
+model CustomerNote {
+  id String @id @default(cuid())
+  businessId String
+  customerId String
+  authorId String?
+  body String @db.VarChar(2000)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  customer Customer @relation(fields: [businessId, customerId], references: [businessId, id], onDelete: Restrict)
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  @@index([businessId, customerId, createdAt])
+  @@index([authorId])
 }

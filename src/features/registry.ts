@@ -41,7 +41,7 @@ export const modules = [
     status: "available",
     route: "/onboarding",
     summary:
-      "Create a business workspace with a booking address, country and timezone.",
+      "Create a workspace with a booking address, region and industry presets. Suggestions never insert business records.",
     dependencies: "authentication,permissions",
     acceptance: "Business, owner membership and audit event commit together.",
   },
@@ -77,7 +77,7 @@ export const modules = [
     status: "available",
     route: "services",
     summary:
-      "Create and edit service names, durations, prices and active status. Categories and packages are not available.",
+      "Manage services, categories, optional add-ons, packages, prices, durations and buffers.",
     dependencies: "businesses,permissions",
     acceptance: "Server-owned prices and tenant-scoped service updates.",
   },
@@ -112,7 +112,7 @@ export const modules = [
     status: "partial",
     route: "customers",
     summary:
-      "Create and search customers, open contact profiles and review recorded visits. Notes and consent preferences are not stored yet.",
+      "Create and search customers, review recorded visits and appointment-email consent. Owners and admins can add private service notes after the new migration.",
     dependencies: "businesses,permissions",
     acceptance:
       "Customer profiles and nested visits are scoped to the business.",
@@ -149,7 +149,7 @@ export const modules = [
     flag: "booking",
     route: "calendar",
     summary:
-      "Slot discovery and idempotent transactional booking are implemented and gated. Signed customer lookup/cancellation and manager rescheduling are implemented. Customer-managed rescheduling and configurable buffers remain pending.",
+      "Slot discovery and idempotent transactional booking are implemented and gated. Signed customer lookup/cancellation and manager rescheduling are implemented. Customer rescheduling uses a 15-minute authorization, original-start checks and a durable operation ledger. Configurable buffers and policies are implemented.",
     dependencies: "availability,staff,services",
     acceptance:
       "Overlapping appointments and duplicate submissions are blocked.",

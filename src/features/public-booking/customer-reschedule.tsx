@@ -5,7 +5,6 @@ import {
   moveCustomerBooking,
 } from "@/server/actions";
 import { Button } from "@/components/ui/button";
-import { requestId } from "@/lib/utils";
 export function CustomerReschedule({
   token,
   timezone,
@@ -22,20 +21,19 @@ export function CustomerReschedule({
       [],
     ),
     [selected, setSelected] = useState("");
-  const [expected, setExpected] = useState(""),
-    [key, setKey] = useState(() => requestId());
+  const [authorization, setAuthorization] = useState("");
   async function find() {
     setBusy(true);
     setMessage("");
     setSelected("");
     setSlots([]);
+    setAuthorization("");
     try {
       const r = await loadCustomerRescheduleSlots(token, date);
       if (r.error) setMessage(r.error);
       else {
         setSlots(r.slots ?? []);
-        setExpected(r.expectedStartsAt ?? "");
-        setKey(requestId());
+        setAuthorization(r.authorization ?? "");
         if (!r.slots?.length) setMessage("No available times on this date.");
       }
     } catch {
@@ -50,8 +48,7 @@ export function CustomerReschedule({
     try {
       const r = await moveCustomerBooking(token, {
         startsAt: selected,
-        expectedStartsAt: expected,
-        operationKey: key,
+        authorization,
       });
       setMessage(r.error ?? r.success ?? "Unable to move.");
       if (r.success) {
@@ -75,7 +72,8 @@ export function CustomerReschedule({
       <p className="my-3 text-sm leading-6 text-muted-foreground">
         Choose a new time with the same professional. Your booked price,
         services and duration stay fixed. Availability is checked again before
-        saving.
+        saving. Times are authorized for 15 minutes; refresh them if your
+        session expires.
       </p>
       <fieldset disabled={busy} className="space-y-4">
         <div>
@@ -89,6 +87,7 @@ export function CustomerReschedule({
               setDate(e.target.value);
               setSlots([]);
               setSelected("");
+              setAuthorization("");
             }}
           />
         </div>
@@ -109,7 +108,6 @@ export function CustomerReschedule({
               value={selected}
               onChange={(e) => {
                 setSelected(e.target.value);
-                setKey(requestId());
               }}
             >
               <option value="">Select a time</option>

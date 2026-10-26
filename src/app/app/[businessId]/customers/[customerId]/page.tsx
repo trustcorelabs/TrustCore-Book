@@ -1,3 +1,7 @@
+import { customerNotes } from "@/server/customer-notes";
+import { CustomerNoteForm } from "@/features/customers/note-form";
+import { localTime } from "@/lib/utils";
+import { vocabularyFor } from "@/features/industries/presets";
 import { customerHistory } from "@/server/insights";
 import { PageHeading } from "@/components/ui/page-heading";
 import { Card } from "@/components/ui/card";
@@ -10,11 +14,14 @@ export default async function Page({
 }) {
   const { businessId, customerId } = await params;
   const { scope, customer: c } = await customerHistory(businessId, customerId);
+  const manage = canManage(scope.member.role);
+  const notes = manage ? await customerNotes(businessId, customerId) : [];
+  const words = vocabularyFor(scope.business);
   return (
     <>
       <PageHeading
         title={c.name}
-        description="Customer profile and recorded visit history."
+        description={`${words.customer} profile and recorded appointment history.`}
       />
       <Card className="mb-6">
         <dl className="grid gap-5 text-sm sm:grid-cols-2">
@@ -28,10 +35,39 @@ export default async function Page({
           </div>
         </dl>
         <p className="mt-5 text-xs text-muted-foreground">
-          Notes and marketing-consent preferences are not stored in this
-          version.
+          Appointment emails:{" "}
+          {c.appointmentEmailOptIn ? "Opted in" : "Not opted in"}. This does not
+          grant marketing consent.
         </p>
       </Card>
+      {manage && (
+        <Card className="mb-6">
+          <h2 className="text-lg font-semibold">Private service notes</h2>
+          <CustomerNoteForm businessId={businessId} customerId={customerId} />
+          {notes.length ? (
+            <ol className="mt-6 divide-y divide-border">
+              {notes.slice(0, 50).map((note) => (
+                <li key={note.id} className="py-4">
+                  <p className="whitespace-pre-wrap text-sm leading-7">
+                    {note.body}
+                  </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {note.author?.name ?? "Former team member"} ·{" "}
+                    {localTime(note.createdAt, scope.business.timezone)}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="mt-5 text-sm text-muted-foreground">
+              No service notes yet.
+            </p>
+          )}
+          {notes.length > 50 && (
+            <p className="notice mt-4">Showing the latest 50 notes.</p>
+          )}
+        </Card>
+      )}
       {c.appointments.length > 100 && (
         <p className="notice mb-5">Showing the latest 100 visits.</p>
       )}

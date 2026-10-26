@@ -17,12 +17,10 @@ const props: DashboardViewProps = {
 describe("truthful dashboard presentation", () => {
   it("shows real counts, meaningful empty states and no invented revenue", () => {
     render(<DashboardView {...props} />);
-    expect(
-      screen.getByText("Your next chapter starts with a visit."),
-    ).toBeVisible();
+    expect(screen.getByText("No upcoming appointments")).toBeVisible();
     expect(screen.getByText("Your activity story starts here")).toBeVisible();
     expect(
-      screen.getByText("0 of 3 essentials complete. Start where you are."),
+      screen.getByText("0 of 3 setup steps complete. Review is an action."),
     ).toBeVisible();
     expect(
       screen.getByText(/Revenue and staff utilization are not calculated/),
@@ -44,6 +42,7 @@ describe("truthful dashboard presentation", () => {
       <DashboardView
         {...props}
         counts={{ appointments: 3, customers: 1, services: 1, staff: 1 }}
+        configuredStaffCount={1}
         appointments={[
           appointment("today", "2026-10-24T20:00:00Z", "CONFIRMED"),
           appointment("cancelled", "2026-10-25T03:00:00Z", "CANCELLED"),
@@ -55,8 +54,22 @@ describe("truthful dashboard presentation", () => {
     expect(
       screen.getByText(/latest 100 scheduled records · Asia\/Colombo/),
     ).toBeVisible();
-    expect(screen.queryByText(/essentials complete/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText("3 of 3 setup steps complete. Review is an action."),
+    ).toBeVisible();
     expect(screen.getByText("Fixture client")).toBeVisible();
+  });
+  it("does not count staff without saved working hours as configured", () => {
+    render(
+      <DashboardView
+        {...props}
+        counts={{ ...props.counts, services: 1, staff: 1, customers: 1 }}
+        configuredStaffCount={0}
+      />,
+    );
+    expect(
+      screen.getByText("2 of 3 setup steps complete. Review is an action."),
+    ).toBeVisible();
   });
   it("keeps quick actions read-oriented for non-managers and links to the current tenant", () => {
     render(<DashboardView {...props} manage={false} />);

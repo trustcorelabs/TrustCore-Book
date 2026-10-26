@@ -91,15 +91,42 @@ export async function cancelManagedBooking(
         entityId: capability.appointmentId,
       },
     });
-    await enqueueAppointmentNotifications(tx, capability.businessId, capability.appointmentId, "CANCELLED", event.id);
+    await enqueueAppointmentNotifications(
+      tx,
+      capability.businessId,
+      capability.appointmentId,
+      "CANCELLED",
+      event.id,
+    );
   });
 }
 
-export async function changeManagedEmailPreference(capability: BookingCapability, enabled: boolean) {
-  return db().$transaction(async tx => {
-    const a = await tx.appointment.findFirst({ where: { id: capability.appointmentId, businessId: capability.businessId }, select: { customerId: true } });
-    if (!a || capability.expiresAt <= Date.now()) throw Error("Link unavailable");
-    await tx.customer.updateMany({ where: { id: a.customerId, businessId: capability.businessId }, data: { appointmentEmailOptIn: enabled } });
-    await tx.auditLog.create({ data: { businessId: capability.businessId, action: enabled ? "customer.notifications.opted_in" : "customer.notifications.opted_out", entityId: a.customerId } });
+export async function changeManagedEmailPreference(
+  capability: BookingCapability,
+  enabled: boolean,
+) {
+  return db().$transaction(async (tx) => {
+    const a = await tx.appointment.findFirst({
+      where: {
+        id: capability.appointmentId,
+        businessId: capability.businessId,
+      },
+      select: { customerId: true },
+    });
+    if (!a || capability.expiresAt <= Date.now())
+      throw Error("Link unavailable");
+    await tx.customer.updateMany({
+      where: { id: a.customerId, businessId: capability.businessId },
+      data: { appointmentEmailOptIn: enabled },
+    });
+    await tx.auditLog.create({
+      data: {
+        businessId: capability.businessId,
+        action: enabled
+          ? "customer.notifications.opted_in"
+          : "customer.notifications.opted_out",
+        entityId: a.customerId,
+      },
+    });
   });
 }

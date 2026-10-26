@@ -462,7 +462,13 @@ export async function createPublicBooking(input: unknown, clientId: string) {
               entityId: appointment.id,
             },
           });
-          await enqueueAppointmentNotifications(tx, business.id, appointment.id, "CONFIRMED", event.id);
+          await enqueueAppointmentNotifications(
+            tx,
+            business.id,
+            appointment.id,
+            "CONFIRMED",
+            event.id,
+          );
           return appointment.id;
         }
         throw new BookingUnavailable();

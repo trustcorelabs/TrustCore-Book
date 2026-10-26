@@ -1,4 +1,5 @@
 "use client";
+import { useVocabulary } from "@/features/industries/vocabulary-context";
 import { useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -53,6 +54,7 @@ export function CalendarView({
   truncated?: boolean;
   canReschedule?: boolean;
 }) {
+  const words = useVocabulary();
   const hydrated = useHydrated(),
     dialog = useRef<HTMLDialogElement>(null);
   const [staffId, setStaffId] = useState(""),
@@ -165,7 +167,7 @@ export function CalendarView({
           ))}
         </div>
         <div className="min-w-36 flex-1">
-          <label htmlFor="calendar-staff">Staff</label>
+          <label htmlFor="calendar-staff">{words.team}</label>
           <select
             id="calendar-staff"
             disabled={!hydrated}
@@ -173,7 +175,7 @@ export function CalendarView({
             value={staffId}
             onChange={(e) => setStaffId(e.target.value)}
           >
-            <option value="">All staff</option>
+            <option value="">All {words.team.toLowerCase()}</option>
             {staff.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}

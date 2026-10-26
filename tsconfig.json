@@ -30,7 +30,11 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next-booking-test/types/**/*.ts",
-    ".next-booking-test/dev/types/**/*.ts"
+    ".next-booking-test/dev/types/**/*.ts",
+    ".next-release-candidate/types/**/*.ts",
+    ".next-release-candidate/dev/types/**/*.ts",
+    ".next-design-preview/types/**/*.ts",
+    ".next-design-preview/dev/types/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }

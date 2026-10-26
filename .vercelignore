@@ -1,5 +1,9 @@
 .git/
 .vercel-backup*
+.neon/
+.neon
+.vercel/
+docs/
 .local/
 .env
 .env.*

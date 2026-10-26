@@ -7,6 +7,10 @@ import {
   managedRescheduleSlots,
   rescheduleManagedBooking,
 } from "./repositories/rescheduling";
+import {
+  issueRescheduleAuthorization,
+  verifyRescheduleAuthorization,
+} from "./reschedule-authorization";
 import { verifyBookingCapability } from "./booking-management-token";
 import {
   changeManagedEmailPreference,
@@ -81,8 +85,7 @@ export async function cancelCustomerBooking(token: unknown, clientId: string) {
 
 const moveSchema = z.object({
   startsAt: z.iso.datetime({ offset: true }),
-  expectedStartsAt: z.iso.datetime({ offset: true }),
-  operationKey: z.uuid(),
+  authorization: z.string().max(1400),
 });
 export async function customerRescheduleSlots(
   token: unknown,
@@ -97,7 +100,11 @@ export async function customerRescheduleSlots(
       to = new Date(Date.parse(day + "T00:00:00Z") + 2 * 86400000);
     const data = await managedRescheduleSlots(cap, from, to);
     return {
-      expectedStartsAt: data.expectedStartsAt,
+      authorization: issueRescheduleAuthorization(
+        cap,
+        data.expectedStartsAt,
+        getEnv().NEXTAUTH_SECRET,
+      ),
       slots: data.slots.filter(
         (s) => businessLocalDate(new Date(s.startsAt), data.timezone) === day,
       ),
@@ -118,7 +125,20 @@ export async function rescheduleCustomerBooking(
     const cap = await capability(token, clientId);
     const move = moveSchema.parse(input);
     if (!cap) throw Error("Invalid link");
-    await rescheduleManagedBooking(cap, move);
+    const grant = verifyRescheduleAuthorization(
+      move.authorization,
+      cap,
+      getEnv().NEXTAUTH_SECRET,
+    );
+    if (!grant) throw Error("Reschedule authorization expired");
+    await rescheduleManagedBooking(
+      { ...cap, expiresAt: grant.expiresAt },
+      {
+        startsAt: move.startsAt,
+        expectedStartsAt: grant.expectedStartsAt,
+        operationKey: grant.operationKey,
+      },
+    );
     return { success: "Your appointment is rescheduled." };
   } catch {
     return {
@@ -128,6 +148,17 @@ export async function rescheduleCustomerBooking(
   }
 }
 
-export async function updateCustomerNotificationPreference(token: unknown, enabled: unknown, clientId: string) {
-  try { const cap = await capability(token, clientId); if (!cap || typeof enabled !== "boolean") throw Error("Invalid request"); await changeManagedEmailPreference(cap, enabled); return { success: "Email preference saved." }; } catch { return { error: "Unable to update preferences. Check your booking link." }; }
+export async function updateCustomerNotificationPreference(
+  token: unknown,
+  enabled: unknown,
+  clientId: string,
+) {
+  try {
+    const cap = await capability(token, clientId);
+    if (!cap || typeof enabled !== "boolean") throw Error("Invalid request");
+    await changeManagedEmailPreference(cap, enabled);
+    return { success: "Email preference saved." };
+  } catch {
+    return { error: "Unable to update preferences. Check your booking link." };
+  }
 }

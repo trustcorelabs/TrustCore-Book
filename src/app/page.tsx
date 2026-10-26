@@ -1,14 +1,13 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  ArrowUpRight,
   CalendarDays,
   Users,
   Sparkles,
-  ShieldCheck,
   Clock3,
   ChartNoAxesCombined,
-  Check,
+  CalendarRange,
+  ShieldCheck,
   Plus,
   Scissors,
   Flower2,
@@ -19,44 +18,57 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ThemeSelect } from "@/components/theme-select";
 import { ProductPreview } from "@/components/product-preview";
+
 const features = [
   {
     icon: CalendarDays,
-    title: "A clearer appointment book",
-    text: "Keep recorded appointments in view, with customer, service and staff details in one place.",
+    title: "Appointments",
+    text: "Keep your daily schedule organized.",
     tone: "sky",
   },
   {
     icon: Users,
-    title: "Know the people behind every visit",
-    text: "Give your customer directory a home. Keep contact details close and find the person you need.",
+    title: "Customers",
+    text: "Keep customer details and visit history together.",
     tone: "teal",
   },
   {
     icon: Sparkles,
-    title: "Your craft, thoughtfully organized",
-    text: "Build a service menu with clear durations and prices, and keep your team profiles together.",
+    title: "Services",
+    text: "Set prices, durations and staff assignments.",
     tone: "purple",
   },
   {
-    icon: ChartNoAxesCombined,
-    title: "Clarity from your actual records",
-    text: "See appointment status breakdowns and workspace counts. No invented revenue or performance estimates.",
+    icon: Clock3,
+    title: "Team",
+    text: "Manage staff working hours and availability.",
     tone: "amber",
+  },
+  {
+    icon: CalendarRange,
+    title: "Calendar",
+    text: "See appointments in day, week and month views.",
+    tone: "sky",
+  },
+  {
+    icon: ChartNoAxesCombined,
+    title: "Reports",
+    text: "Understand appointment activity from your own records.",
+    tone: "teal",
   },
 ];
 const faqs = [
   [
     "Who is TrustCore Book for?",
-    "Salons, spas, independent professionals and service teams who want one organized place for their customers, services, staff and appointments.",
+    "Salons, barbers, spas, nail and bridal studios, personal trainers, private tutors, photographers and other appointment-based businesses.",
   ],
   [
     "Can customers book online?",
     "Public booking is feature-gated. It is available only when enabled for the deployment and the business has configured services, staff and availability. Creating an account does not enable online booking automatically.",
   ],
   [
-    "Do I need a large team to get started?",
-    "No. Create a business workspace, add your services and customer details, and build from there. Your workspace can grow with your team.",
+    "Can I use it with a small team?",
+    "Yes. You can create a workspace, add services and customer details, then add staff profiles as your business needs them.",
   ],
   [
     "Does the dashboard show revenue or staff utilization?",
@@ -74,7 +86,7 @@ export default function Page() {
         <Brand />
         <nav
           aria-label="Main navigation"
-          className="flex items-center gap-4 sm:gap-6"
+          className="flex flex-wrap items-center gap-3 sm:gap-6"
         >
           <Link
             className="hidden text-sm font-medium text-muted-foreground hover:text-primary-ink md:inline"
@@ -89,63 +101,52 @@ export default function Page() {
             How it works
           </Link>
           <Link
-            className="hidden text-sm font-semibold hover:text-primary-ink sm:inline"
+            className="hidden text-sm font-medium text-muted-foreground hover:text-primary-ink lg:inline"
+            href="#pricing"
+          >
+            Pricing
+          </Link>
+          <Link
+            className="text-sm font-semibold hover:text-primary-ink"
             href="/login"
           >
             Sign in
           </Link>
           <Button asChild size="sm">
-            <Link href="/register">
-              Get started
-              <ArrowUpRight size={15} />
-            </Link>
+            <Link href="/register">Create your workspace</Link>
           </Button>
         </nav>
       </header>
       <main id="main">
         <section className="marketing-shell grid items-center gap-12 pb-16 pt-10 sm:pb-24 sm:pt-16 lg:grid-cols-[.95fr_1.05fr] lg:gap-14 lg:pb-28 lg:pt-20">
           <div>
-            <p className="eyebrow flex items-center gap-2">
-              <span className="size-1.5 rounded-full bg-teal" />
-              Appointments · Clients · Growth
-            </p>
-            <h1 className="mt-6 text-[clamp(2.7rem,5vw,4.65rem)] font-bold leading-[1.05] tracking-[-.055em]">
-              A calmer day.
-              <br />
-              <span className="text-primary-ink">A stronger business.</span>
+            <p className="eyebrow">TrustCore Book · Business workspace</p>
+            <h1 className="mt-6 max-w-2xl text-[clamp(2.45rem,4.2vw,3.9rem)] font-bold leading-[1.08] tracking-[-.055em]">
+              Manage Appointments, Clients &amp; Your Team{" "}
+              <span className="text-primary-ink">— All in One Place.</span>
             </h1>
             <p className="mt-6 max-w-lg text-base leading-8 text-muted-foreground">
-              Beautiful work deserves a little less busywork. Bring your
-              appointments, clients and team into one thoughtful workspace, made
-              for modern salons and spas.
+              An easier way to run your salon, spa, barbershop or
+              appointment-based business.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild>
                 <Link href="/register">
-                  Get started
-                  <ArrowRight size={17} />
+                  Create your workspace <ArrowRight size={17} />
                 </Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="#features">Explore features</Link>
+                <Link href="#how-it-works">See how it works</Link>
               </Button>
             </div>
-            <p className="mt-5 flex items-center gap-2 text-xs leading-6 text-muted-foreground">
-              <ShieldCheck size={15} className="shrink-0 text-teal-ink" />
-              Your own workspace. A place for your next chapter.
+            <p className="mt-6 flex items-start gap-2 text-xs leading-6 text-muted-foreground">
+              <ShieldCheck
+                size={15}
+                className="mt-1 shrink-0 text-primary-ink"
+              />
+              Organize the records your team uses every day in one business
+              workspace.
             </p>
-            <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2 border-t border-border pt-5 text-[11px] font-medium text-muted-foreground">
-              {[
-                "Salons & barbers",
-                "Spas & wellness",
-                "Independent professionals",
-              ].map((t) => (
-                <span key={t} className="flex items-center gap-1.5">
-                  <Check size={12} className="text-teal-ink" />
-                  {t}
-                </span>
-              ))}
-            </div>
           </div>
           <ProductPreview />
         </section>
@@ -156,22 +157,17 @@ export default function Page() {
           <div className="marketing-shell py-16 sm:py-24">
             <div className="mb-10 grid items-end gap-5 md:grid-cols-2">
               <div>
-                <p className="eyebrow mb-3">
-                  The essentials, beautifully connected
-                </p>
+                <p className="eyebrow mb-3">Built for everyday work</p>
                 <h2 className="section-heading max-w-lg">
-                  More time for your craft.
-                  <br />
-                  Less time keeping up.
+                  Everything your team needs to stay organized.
                 </h2>
               </div>
               <p className="max-w-md text-sm leading-7 text-muted-foreground md:justify-self-end">
-                One place for the work behind every great visit. Simple to
-                navigate, clear to understand, and designed to feel just as good
-                on your phone.
+                Keep appointments, customers, services and staff in a workspace
+                that is easy to use on desktop and mobile.
               </p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {features.map(({ icon: Icon, title, text, tone }) => (
                 <Card key={title} className="h-full shadow-none">
                   <span className={`icon-tile tone-${tone} mb-6`}>
@@ -184,11 +180,9 @@ export default function Page() {
                 </Card>
               ))}
             </div>
-            <p className="mt-6 flex items-start gap-2 text-xs leading-6 text-muted-foreground">
-              <Clock3 size={15} className="mt-1 shrink-0" />
-              Online booking, staff schedules and team membership tools depend
-              on enabled features. Your workspace shows what is currently
-              available.
+            <p className="mt-6 text-xs leading-6 text-muted-foreground">
+              Online booking and team membership tools depend on enabled
+              features. Your workspace shows what is currently available.
             </p>
           </div>
         </section>
@@ -197,11 +191,10 @@ export default function Page() {
           className="marketing-shell scroll-mt-6 py-16 sm:py-24"
         >
           <div className="text-center">
-            <p className="eyebrow mb-3">A fresh start, without the fuss</p>
-            <h2 className="section-heading">Make yourself at home.</h2>
+            <p className="eyebrow mb-3">How it works</p>
+            <h2 className="section-heading">Start with the essentials.</h2>
             <p className="mx-auto mt-4 max-w-lg text-sm leading-7 text-muted-foreground">
-              Start with the essentials. Shape a workspace around the way you
-              work.
+              Set up the workspace around the way your business works.
             </p>
           </div>
           <ol className="mt-12 grid gap-8 md:grid-cols-3">
@@ -213,22 +206,22 @@ export default function Page() {
               ],
               [
                 "02",
-                "Bring your business together",
-                "Add services, staff profiles and customer details using the existing tools.",
+                "Add services and staff",
+                "Set service durations and prices, then configure staff profiles and working hours.",
               ],
               [
                 "03",
-                "Find your daily flow",
-                "Review recorded appointments and keep your business essentials close at hand.",
+                "Manage appointments",
+                "Review recorded appointments, customer details and daily activity in one place.",
               ],
-            ].map(([n, title, text]) => (
-              <li key={n} className="relative border-t border-border pt-6">
+            ].map(([n, title, copy]) => (
+              <li key={n} className="border-t border-border pt-6">
                 <span className="text-sm font-semibold text-primary-ink">
                   {n} /
                 </span>
                 <h3 className="mt-4 text-lg font-bold">{title}</h3>
                 <p className="mt-3 max-w-sm text-sm leading-7 text-muted-foreground">
-                  {text}
+                  {copy}
                 </p>
               </li>
             ))}
@@ -237,16 +230,13 @@ export default function Page() {
         <section className="border-y border-border bg-card/70">
           <div className="marketing-shell grid gap-10 py-16 sm:py-20 lg:grid-cols-2 lg:items-center">
             <div>
-              <p className="eyebrow mb-3">Good work comes in many forms</p>
+              <p className="eyebrow mb-3">Made for service businesses</p>
               <h2 className="section-heading">
-                Made for the people
-                <br />
-                who care for people.
+                A practical home for appointments and people.
               </h2>
               <p className="mt-5 max-w-md text-sm leading-7 text-muted-foreground">
-                From the first consultation to the familiar faces who return,
-                keep the details of your service business thoughtfully
-                organized.
+                From a solo professional to a growing team, keep the details
+                behind each visit organized.
               </p>
             </div>
             <div className="grid gap-3">
@@ -254,22 +244,22 @@ export default function Page() {
                 [
                   Scissors,
                   "Salons & barbers",
-                  "Your service menu, your team, your regulars.",
+                  "Keep services, staff and regular customer details close.",
                   "sky",
                 ],
                 [
                   Flower2,
                   "Spas & wellness studios",
-                  "A quieter space for the details behind the care.",
+                  "See bookings and staff availability together.",
                   "teal",
                 ],
                 [
                   HeartHandshake,
                   "Independent professionals",
-                  "A professional workspace, even when it’s just you.",
+                  "Run your appointments from one focused workspace.",
                   "purple",
                 ],
-              ].map(([Icon, title, text, tone]) => {
+              ].map(([Icon, title, copy, tone]) => {
                 const I = Icon as typeof Scissors;
                 return (
                   <div
@@ -282,7 +272,7 @@ export default function Page() {
                     <div>
                       <h3 className="text-sm font-semibold">{String(title)}</h3>
                       <p className="mt-1 text-xs leading-6 text-muted-foreground">
-                        {String(text)}
+                        {String(copy)}
                       </p>
                     </div>
                   </div>
@@ -292,15 +282,51 @@ export default function Page() {
           </div>
         </section>
         <section
+          id="trust"
+          className="marketing-shell grid gap-7 py-16 sm:py-20 md:grid-cols-[auto_1fr] md:items-start"
+        >
+          <span className="icon-tile tone-amber">
+            <ShieldCheck size={22} />
+          </span>
+          <div>
+            <p className="eyebrow mb-3">Your business workspace</p>
+            <h2 className="section-heading">
+              Clear access to the right records.
+            </h2>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground">
+              Workspace access is checked against business membership and role
+              permissions. The dashboard reports on recorded appointment
+              activity and actual workspace counts. Available features depend on
+              deployment configuration.
+            </p>
+          </div>
+        </section>
+        <section
+          id="pricing"
+          className="scroll-mt-6 border-y border-border bg-card/80"
+        >
+          <div className="marketing-shell grid gap-6 py-14 sm:py-18 md:grid-cols-2 md:items-center">
+            <div>
+              <p className="eyebrow mb-3">Pricing</p>
+              <h2 className="section-heading">
+                Pricing information coming soon.
+              </h2>
+            </div>
+            <p className="max-w-lg text-sm leading-7 text-muted-foreground">
+              We have not published approved plan prices or trial terms. You can
+              explore the workspace setup without relying on an advertised plan
+              or trial offer.
+            </p>
+          </div>
+        </section>
+        <section
           id="faq"
           className="marketing-shell grid gap-8 py-16 sm:py-24 lg:grid-cols-[.7fr_1.3fr]"
         >
           <div>
-            <p className="eyebrow mb-3">A little clarity</p>
+            <p className="eyebrow mb-3">FAQ</p>
             <h2 className="section-heading">
-              Good questions.
-              <br />
-              Straight answers.
+              Good questions. Straight answers.
             </h2>
           </div>
           <div>
@@ -320,18 +346,18 @@ export default function Page() {
         <section className="marketing-shell pb-16">
           <div className="color-panel flex flex-wrap items-center justify-between gap-8 rounded-3xl border border-border p-7 sm:p-12">
             <div>
-              <p className="eyebrow mb-3">Your next chapter</p>
+              <p className="eyebrow mb-3">Get organized</p>
               <h2 className="section-heading">
-                Make room for a better working day.
+                Give your business one place to work.
               </h2>
               <p className="mt-4 text-sm leading-7 text-muted-foreground">
-                Start with your workspace. Make it your own.
+                Create your workspace and add the services and people you work
+                with.
               </p>
             </div>
             <Button asChild>
               <Link href="/register">
-                Create your workspace
-                <ArrowRight size={17} />
+                Create your workspace <ArrowRight size={17} />
               </Link>
             </Button>
           </div>
@@ -343,7 +369,7 @@ export default function Page() {
             <div>
               <Brand />
               <p className="mt-4 text-xs text-muted-foreground">
-                Appointments · Clients · Growth
+                Appointments · Clients · Team
               </p>
             </div>
             <nav
@@ -351,9 +377,10 @@ export default function Page() {
               className="flex flex-wrap gap-6 text-sm text-muted-foreground"
             >
               <Link href="#features">Features</Link>
+              <Link href="#pricing">Pricing</Link>
               <Link href="#faq">FAQ</Link>
               <Link href="/login">Sign in</Link>
-              <Link href="/register">Get started</Link>
+              <Link href="/register">Create your workspace</Link>
             </nav>
             <ThemeSelect />
           </div>

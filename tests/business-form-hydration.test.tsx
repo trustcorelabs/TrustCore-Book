@@ -49,3 +49,20 @@ it("preserves onboarding values through review and back without saving", async (
   ).toBeVisible();
   expect(actions.onboard).not.toHaveBeenCalled();
 });
+it("previews industry terminology and never invokes a save action in preview mode", async () => {
+  render(<BusinessForm previewOnly />);
+  const user = userEvent.setup();
+  await user.selectOptions(screen.getByLabelText("Business type"), "TUTORING");
+  expect(screen.getByText("Team · Sessions · Clients")).toBeVisible();
+  await user.type(screen.getByLabelText("Business name"), "Lesson Studio");
+  await user.click(screen.getByRole("button", { name: /Continue/ }));
+  await user.click(await screen.findByRole("button", { name: /Continue/ }));
+  expect(
+    await screen.findByText("Private tutor & instructor", { selector: "dd" }),
+  ).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Finish preview" }));
+  expect(await screen.findByRole("status")).toHaveTextContent(
+    "No workspace has been created",
+  );
+  expect(actions.onboard).not.toHaveBeenCalled();
+});

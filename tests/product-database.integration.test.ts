@@ -26,6 +26,11 @@ import {
   readAudit,
   readCustomerHistory,
 } from "@/server/repositories/insights";
+import {
+  insertCustomerNote,
+  readCustomerNotes,
+} from "@/server/repositories/customer-notes";
+import { updateProfile } from "@/server/repositories/workspace";
 import { insertRecord } from "@/server/repositories/workspace";
 import { serviceSchema } from "@/lib/validation";
 import {
@@ -78,7 +83,10 @@ suite(
       const rows = await db.$queryRaw<
         { migration_name: string }[]
       >`SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`;
-      expect(rows).toHaveLength(7);
+      expect(rows).toHaveLength(8);
+      expect(rows.map((r) => r.migration_name)).toContain(
+        "20261026010000_industry_preferences_customer_notes",
+      );
       expect(rows.map((r) => r.migration_name)).toContain(
         "20261025010000_booking_product_core",
       );
@@ -200,6 +208,7 @@ suite(
       const db = holder.client;
       if (!db) return;
       for (const id of [businessId, otherId].filter(Boolean)) {
+        await db.customerNote.deleteMany({ where: { businessId: id } });
         await db.bookingMutation.deleteMany({ where: { businessId: id } });
         await db.serviceComponent.deleteMany({ where: { businessId: id } });
         await db.bookingRequest.deleteMany({ where: { businessId: id } });
@@ -557,6 +566,79 @@ suite(
           },
         }),
       ).rejects.toThrow();
+    });
+    it("persists industry preferences without inserting sample records", async () => {
+      const db = holder.client!;
+      const before = await db.service.count({ where: { businessId } });
+      await updateProfile(scope(), {
+        name: "Synthetic tutoring fixture",
+        slug: `product-${suffix}`,
+        country: "LK",
+        timezone: "Asia/Colombo",
+        businessType: "TUTORING",
+        terminologyMode: "INDUSTRY",
+      });
+      expect(
+        await db.business.findUniqueOrThrow({ where: { id: businessId } }),
+      ).toMatchObject({
+        businessType: "TUTORING",
+        terminologyMode: "INDUSTRY",
+      });
+      expect(await db.service.count({ where: { businessId } })).toBe(before);
+      await expect(
+        db.business.update({
+          where: { id: businessId },
+          data: { businessType: "INVALID" },
+        }),
+      ).rejects.toThrow();
+    });
+    it("enforces private-note tenant keys, current manager permissions and atomic audit", async () => {
+      const db = holder.client!;
+      const noteId = await insertCustomerNote(
+        scope(),
+        customerId,
+        "Synthetic service preference",
+      );
+      expect(
+        (await readCustomerNotes(scope(), customerId)).map((n) => n.id),
+      ).toContain(noteId);
+      await expect(
+        insertCustomerNote(scope(), foreignCustomerId, "Foreign note"),
+      ).rejects.toThrow();
+      await expect(
+        db.customerNote.create({
+          data: {
+            businessId,
+            customerId: foreignCustomerId,
+            authorId: ownerId,
+            body: "Cross-tenant relation",
+          },
+        }),
+      ).rejects.toThrow();
+      await expect(
+        readCustomerNotes(
+          { ...scope(), actorId: memberId, role: "OWNER" } as TenantContext,
+          customerId,
+        ),
+      ).rejects.toThrow();
+      await expect(
+        insertCustomerNote(
+          { ...scope(), actorId: memberId, role: "OWNER" } as TenantContext,
+          customerId,
+          "Denied",
+        ),
+      ).rejects.toThrow();
+      const audit = await db.auditLog.findMany({
+        where: {
+          businessId,
+          action: "customer.note.created",
+          entityId: customerId,
+        },
+      });
+      expect(audit).toHaveLength(1);
+      expect(JSON.stringify(audit)).not.toContain(
+        "Synthetic service preference",
+      );
     });
   },
 );

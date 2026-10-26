@@ -7,3 +7,6 @@ README.original.md
 playwright-report
 test-results
 blob-report
+
+.vercel-backup-*/
+.next-*/

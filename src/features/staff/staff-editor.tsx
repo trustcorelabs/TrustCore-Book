@@ -1,5 +1,6 @@
 "use client";
 
+import { useVocabulary } from "@/features/industries/vocabulary-context";
 import { CalendarDays, Clock3, Pencil } from "lucide-react";
 import { StatusBadge } from "@/components/ui/badge";
 import { useState, useTransition } from "react";
@@ -56,6 +57,7 @@ function StaffRow({
   today: string;
   readOnly?: boolean;
 }) {
+  const words = useVocabulary();
   const router = useRouter();
   const [name, setName] = useState(staff.name);
   const [before, setBefore] = useState(staff.bufferBeforeMinutes ?? 0),
@@ -181,7 +183,7 @@ function StaffRow({
       {!readOnly && (
         <span className="mt-5 flex items-center gap-2 border-t border-border pt-4 text-xs font-semibold text-primary-ink">
           <Pencil size={13} />
-          Edit profile, services & hours
+          Edit profile, {words.services.toLowerCase()} & hours
         </span>
       )}
     </>
@@ -246,7 +248,7 @@ function StaffRow({
           </Button>
         </section>
         <section aria-label={`${staff.name} schedule`}>
-          <h3 className="text-sm font-semibold">Services</h3>
+          <h3 className="text-sm font-semibold">{words.services}</h3>
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
             {services
               .filter(

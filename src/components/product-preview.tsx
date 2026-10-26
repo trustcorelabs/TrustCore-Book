@@ -19,7 +19,7 @@ export function ProductPreview() {
           <span className="size-2 rounded-full bg-border" />
           <span className="size-2 rounded-full bg-border" />
           <span className="ml-auto text-[10px] font-medium text-muted-foreground">
-            Workspace preview · illustrative empty state
+            Illustrative demo · empty workspace
           </span>
         </div>
         <div className="flex min-h-[355px] sm:min-h-[425px]">
@@ -42,10 +42,10 @@ export function ProductPreview() {
             <div className="mb-5 flex items-start justify-between gap-2">
               <div>
                 <p className="text-[10px] text-muted-foreground">
-                  A fresh start for your business
+                  Illustrative demo
                 </p>
                 <h2 className="mt-1 text-lg font-bold sm:text-xl">
-                  Your day, in focus.
+                  Your business overview
                 </h2>
               </div>
               <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-primary-ink">
@@ -89,7 +89,7 @@ export function ProductPreview() {
                     size={21}
                   />
                   <p className="text-xs font-semibold">
-                    A little space for what’s next.
+                    No upcoming appointments
                   </p>
                   <p className="mt-1 text-[10px] text-muted-foreground">
                     Real appointments will appear here.
@@ -109,9 +109,9 @@ export function ProductPreview() {
           <Clock3 size={17} />
         </span>
         <div>
-          <p className="text-xs font-semibold">Less admin. More presence.</p>
+          <p className="text-xs font-semibold">Built around your daily work</p>
           <p className="mt-0.5 text-[10px] text-muted-foreground">
-            Make time for the people in front of you.
+            A preview of the empty workspace.
           </p>
         </div>
       </div>

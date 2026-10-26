@@ -29,7 +29,7 @@ export async function rescheduleAppointmentService(
   } catch {
     return {
       error:
-        "Unable to move this appointment. Check working hours, time off and existing bookings. At least one hour of notice is required; ambiguous DST times are not accepted.",
+        "Unable to move this appointment. Check working hours, time off and existing bookings. The business notice policy applies; ambiguous daylight-saving times are not accepted.",
     };
   }
 }
