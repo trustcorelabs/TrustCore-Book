@@ -4,17 +4,17 @@
   --typeface:
     "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  --background: #f7f7fc;
-  --foreground: #25243c;
+  --background: #f5f7fb;
+  --foreground: #17243f;
   --card: #ffffff;
-  --muted: #f0f0f8;
-  --muted-foreground: #68677f;
-  --primary: #6558f5;
+  --muted: #edf1f7;
+  --muted-foreground: #606d83;
+  --primary: #3e50dd;
   --primary-foreground: #ffffff;
-  --primary-ink: #5141d7;
-  --border: #e5e5f0;
-  --accent: #efedff;
-  --ring: #6558f5;
+  --primary-ink: #3445c7;
+  --border: #e3e8f1;
+  --accent: #eef0ff;
+  --ring: #3e50dd;
   --destructive: #bc314f;
   --sky: #0ea5e9;
   --teal: #0d9488;
@@ -31,24 +31,24 @@
   --pink-ink: #a52161;
   --green-soft: #e9f8ed;
   --green-ink: #21683b;
-  --elevation-card: 0 4px 24px -12px #37326822, 0 1px 3px #37326805;
-  --elevation-float: 0 16px 48px -18px #37326835;
-  --radius: 1.25rem;
+  --elevation-card: 0 3px 16px -8px #17243f12, 0 1px 2px #17243f04;
+  --elevation-float: 0 24px 70px -28px #23385c35;
+  --radius: 1rem;
   color-scheme: light;
 }
 .dark {
   color-scheme: dark;
-  --background: #151522;
-  --foreground: #f0effb;
-  --card: #1e1e30;
-  --muted: #29293e;
-  --muted-foreground: #b3b2ca;
-  --primary: #a79bff;
-  --primary-foreground: #211947;
-  --primary-ink: #c4baff;
-  --border: #34344c;
-  --accent: #302a51;
-  --ring: #a79bff;
+  --background: #0b1528;
+  --foreground: #e9effb;
+  --card: #121f36;
+  --muted: #1b2c48;
+  --muted-foreground: #afbed6;
+  --primary: #8ca4ff;
+  --primary-foreground: #101d38;
+  --primary-ink: #aec0ff;
+  --border: #2a3d5d;
+  --accent: #22375e;
+  --ring: #8ca4ff;
   --destructive: #ff9bb2;
   --sky-soft: #162f43;
   --sky-ink: #8bd5ff;
@@ -239,10 +239,10 @@
     width: 100%;
     height: 3rem;
     border: 1px solid var(--border);
-    border-radius: 0.8rem;
+    border-radius: 0.65rem;
     background: var(--card);
     padding: 0 0.9rem;
-    font-size: 0.875rem;
+    font-size: 1rem;
     color: var(--foreground);
     transition:
       border-color 0.18s,
@@ -286,8 +286,8 @@
   }
   .hero-wash {
     background:
-      radial-gradient(ellipse at 8% 5%, var(--accent), transparent 58%),
-      radial-gradient(ellipse at 95% 80%, var(--sky-soft), transparent 55%),
+      radial-gradient(ellipse at 15% 0%, var(--sky-soft), transparent 55%),
+      radial-gradient(ellipse at 95% 55%, var(--accent), transparent 55%),
       var(--background);
   }
   .color-panel {
@@ -387,5 +387,155 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Shared product rhythm: quiet surfaces, clear hierarchy, comfortable controls. */
+@layer components {
+  .marketing-shell {
+    width: min(100% - 2.5rem, 1200px);
+    margin-inline: auto;
+  }
+  .section-heading {
+    font-size: clamp(1.8rem, 3vw, 2.65rem);
+    line-height: 1.16;
+    font-weight: 750;
+  }
+  .metric-card {
+    position: relative;
+    overflow: hidden;
+    transition:
+      border-color 0.18s,
+      box-shadow 0.18s,
+      transform 0.18s;
+  }
+  a:hover .metric-card {
+    border-color: color-mix(in srgb, var(--primary) 25%, var(--border));
+    transform: translateY(-2px);
+    box-shadow: var(--elevation-card);
+  }
+  .preview-grid {
+    background-image: linear-gradient(var(--border) 1px, transparent 1px);
+    background-size: 100% 42px;
+  }
+  .workspace-sidebar {
+    background: var(--card);
+  }
+  .workspace-sidebar nav a {
+    min-height: 44px;
+  }
+  .workspace-topbar {
+    background: color-mix(in srgb, var(--card) 94%, transparent);
+  }
+  .faq-row > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 72px;
+    font-weight: 600;
+  }
+  .faq-row[open] > summary svg {
+    transform: rotate(45deg);
+  }
+  .faq-row > summary svg {
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .input[aria-invalid="true"]:focus-visible {
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--destructive) 15%, transparent);
+  }
+  [role="status"] {
+    border-radius: 0.75rem;
+  }
+  dialog[open] {
+    animation: drawer-in 0.18s ease-out;
+  }
+  .auth-panel {
+    border-top: 3px solid var(--primary);
+  }
+  .dashboard-today {
+    background: linear-gradient(115deg, var(--card) 25%, var(--sky-soft));
+  }
+  @media (min-width: 640px) {
+    .marketing-shell {
+      width: min(100% - 4rem, 1200px);
+    }
+    .input {
+      font-size: 0.875rem;
+    }
+  }
+}
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@layer components {
+  progress {
+    appearance: none;
+    overflow: hidden;
+    border: 0;
+    border-radius: 999px;
+    background: var(--muted);
+    color: var(--primary);
+  }
+  progress::-webkit-progress-bar {
+    border-radius: 999px;
+    background: var(--muted);
+  }
+  progress::-webkit-progress-value {
+    border-radius: 999px;
+    background: var(--primary);
+  }
+  progress::-moz-progress-bar {
+    border-radius: 999px;
+    background: var(--primary);
+  }
+}
+
+@layer components {
+  .workspace-sidebar {
+    --background: #182d4d;
+    --foreground: #eff4ff;
+    --card: #10223e;
+    --muted: #213b60;
+    --muted-foreground: #c1cde0;
+    --border: #2c4162;
+    --accent: #284774;
+    --primary-ink: #bacbff;
+    --primary: #a7baff;
+    --teal-soft: #193e47;
+    --teal-ink: #a0e6d4;
+    background: #10223e;
+    color: #eff4ff;
+  }
+  .workspace-sidebar .brand-mark {
+    background: #0d9488;
+  }
+  .calendar-event {
+    border-left-width: 3px;
+    background: var(--card);
+    border-left-color: var(--primary);
+  }
+  .calendar-event.status-completed {
+    border-left-color: var(--teal);
+  }
+  .calendar-event.status-pending {
+    border-left-color: var(--amber);
+  }
+  .calendar-event.status-cancelled,
+  .calendar-event.status-no_show {
+    border-left-color: var(--pink);
+  }
+  .calendar-grid > section {
+    min-height: 130px;
   }
 }

@@ -1,5 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { assertCatalogEntitlement } from "./billing";
+import { enqueueAppointmentNotifications } from "./notification-jobs";
+import { prepareCatalog } from "./catalog";
 import type { Prisma } from "@/generated/prisma/client";
 import type { TenantContext } from "@/server/authorization";
 import type { z } from "zod";
@@ -37,7 +40,11 @@ export function createOwnedBusiness(actorId: string, input: BusinessInput) {
 export function readWorkspace(scope: TenantContext) {
   const businessId = scope.businessId;
   return Promise.all([
-    db().service.findMany({ where: { businessId }, orderBy: { name: "asc" } }),
+    db().service.findMany({
+      where: { businessId },
+      include: { category: true, components: true },
+      orderBy: { name: "asc" },
+    }),
     db().staff.findMany({
       where: { businessId },
       include: {
@@ -97,17 +104,38 @@ export function updateCatalogRecord(
 ) {
   return db().$transaction(async (tx) => {
     await requireCurrentManager(tx, scope);
-    const { id, ...changes } = record.input;
-    const result =
-      record.kind === "services"
-        ? await tx.service.updateMany({
-            where: { id, businessId: scope.businessId },
-            data: changes,
-          })
-        : await tx.staff.updateMany({
-            where: { id, businessId: scope.businessId },
-            data: changes,
-          });
+    const { id } = record.input;
+    if (record.input.active) await assertCatalogEntitlement(tx, scope, record.kind, id);
+    let result: { count: number };
+    if (record.kind === "services") {
+      await tx.$queryRaw`SELECT "id" FROM "Service" WHERE "businessId"=${scope.businessId} AND "id"=${id} FOR UPDATE`;
+      const prepared = await prepareCatalog(tx, scope, record.input, id);
+      result = await tx.service.updateMany({
+        where: { id, businessId: scope.businessId },
+        data: prepared.data,
+      });
+      await tx.serviceComponent.deleteMany({
+        where: { businessId: scope.businessId, packageId: id },
+      });
+      if (prepared.components.length)
+        await tx.serviceComponent.createMany({
+          data: prepared.components.map((c) => ({
+            ...c,
+            businessId: scope.businessId,
+            packageId: id,
+          })),
+        });
+    } else {
+      result = await tx.staff.updateMany({
+        where: { id, businessId: scope.businessId },
+        data: {
+          name: record.input.name,
+          active: record.input.active,
+          bufferBeforeMinutes: record.input.bufferBeforeMinutes,
+          bufferAfterMinutes: record.input.bufferAfterMinutes,
+        },
+      });
+    }
     if (result.count !== 1) throw new Error("Record not found");
     await tx.auditLog.create({
       data: {
@@ -185,7 +213,7 @@ export function transitionAppointment(
     });
     if (updated.count !== 1)
       throw new Error("Appointment not found or already closed");
-    await tx.auditLog.create({
+    const event = await tx.auditLog.create({
       data: {
         businessId: scope.businessId,
         actorId: scope.actorId,
@@ -193,6 +221,7 @@ export function transitionAppointment(
         entityId: id,
       },
     });
+    if (status === "CONFIRMED" || status === "CANCELLED") await enqueueAppointmentNotifications(tx, scope.businessId, id, status, event.id);
   });
 }
 export function createStaffTimeOff(
@@ -212,8 +241,8 @@ export function createStaffTimeOff(
         businessId: scope.businessId,
         staffId,
         status: { not: "CANCELLED" },
-        startsAt: { lt: endsAt },
-        endsAt: { gt: startsAt },
+        occupiedStartsAt: { lt: endsAt },
+        occupiedEndsAt: { gt: startsAt },
       },
     });
     if (conflicts)
@@ -266,13 +295,24 @@ export function insertRecord(scope: TenantContext, record: NewRecord) {
   return db().$transaction(async (tx) => {
     await requireCurrentManager(tx, scope);
     const businessId = scope.businessId;
+    if (record.kind === "services" || record.kind === "staff") await assertCatalogEntitlement(tx, scope, record.kind);
     let entity: { id: string };
     switch (record.kind) {
-      case "services":
+      case "services": {
+        const prepared = await prepareCatalog(tx, scope, record.input);
         entity = await tx.service.create({
-          data: { ...record.input, businessId },
+          data: { ...prepared.data, businessId },
         });
+        if (prepared.components.length)
+          await tx.serviceComponent.createMany({
+            data: prepared.components.map((c) => ({
+              ...c,
+              businessId,
+              packageId: entity.id,
+            })),
+          });
         break;
+      }
       case "staff":
         entity = await tx.staff.create({
           data: { ...record.input, businessId },

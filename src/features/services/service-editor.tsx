@@ -1,4 +1,9 @@
 "use client";
+import {
+  CatalogFields,
+  type CatalogFieldsValue,
+  type CatalogOption,
+} from "@/components/catalog-fields";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, Clock3, Pencil, Archive, RotateCcw } from "lucide-react";
@@ -7,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/badge";
 import { money } from "@/lib/utils";
-type Service = {
+type Service = CatalogFieldsValue & {
   id: string;
   name: string;
   durationMinutes: number;
@@ -20,12 +25,16 @@ function ServiceRow({
   currency,
   readOnly = false,
   index = 0,
+  categories = [],
+  options = [],
 }: {
   businessId: string;
   service: Service;
   currency: string;
   readOnly?: boolean;
   index?: number;
+  categories?: { id: string; name: string }[];
+  options?: CatalogOption[];
 }) {
   const router = useRouter();
   const [name, setName] = useState(service.name);
@@ -34,6 +43,13 @@ function ServiceRow({
   );
   const [price, setPrice] = useState(service.price);
   const [active, setActive] = useState(service.active);
+  const [catalog, setCatalog] = useState<CatalogFieldsValue>({
+    kind: service.kind,
+    categoryId: service.categoryId,
+    components: service.components,
+    bufferBeforeMinutes: service.bufferBeforeMinutes,
+    bufferAfterMinutes: service.bufferAfterMinutes,
+  });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   async function save(nextActive = active) {
@@ -41,6 +57,7 @@ function ServiceRow({
     setMessage("");
     try {
       const result = await editCatalogRecord(businessId, "services", {
+        ...catalog,
         id: service.id,
         name,
         durationMinutes,
@@ -137,6 +154,13 @@ function ServiceRow({
               required
             />
           </div>
+          <CatalogFields
+            id={service.id}
+            initial={catalog}
+            onChange={setCatalog}
+            categories={categories}
+            options={options}
+          />
           <label className="flex items-center gap-2 text-sm sm:col-span-3">
             <input
               type="checkbox"
@@ -174,7 +198,9 @@ export function ServiceEditor({
   services,
   currency,
   readOnly = false,
+  categories = [],
 }: {
+  categories?: { id: string; name: string }[];
   businessId: string;
   services: Service[];
   currency: string;
@@ -191,6 +217,8 @@ export function ServiceEditor({
           businessId={businessId}
           service={service}
           currency={currency}
+          categories={categories}
+          options={services}
           index={index}
           readOnly={readOnly}
         />

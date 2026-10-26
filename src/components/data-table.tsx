@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import {
   flexRender,
   getCoreRowModel,
@@ -20,7 +21,7 @@ export function DataTable({
   emptyTitle,
   emptyDescription,
 }: {
-  columns: { key: string; label: string }[];
+  columns: { key: string; label: string; hrefKey?: string }[];
   rows: Record<string, string>[];
   emptyTitle: string;
   emptyDescription: string;
@@ -41,6 +42,24 @@ export function DataTable({
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
+  const content = (
+    key: string,
+    value: unknown,
+    original: Record<string, string>,
+  ) => {
+    const hrefKey = columns.find((c) => c.key === key)?.hrefKey;
+    const href = hrefKey ? original[hrefKey] : undefined;
+    return href?.startsWith("/app/") ? (
+      <Link
+        className="font-semibold text-primary-ink underline-offset-4 hover:underline"
+        href={href}
+      >
+        {String(value)}
+      </Link>
+    ) : (
+      String(value)
+    );
+  };
   if (!rows.length)
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
   return (
@@ -73,7 +92,7 @@ export function DataTable({
                         cell.column.id === "name" ? "font-semibold" : undefined
                       }
                     >
-                      {String(cell.getValue())}
+                      {content(cell.column.id, cell.getValue(), row.original)}
                     </span>
                   </dd>
                 </div>
@@ -139,7 +158,7 @@ export function DataTable({
                             .slice(0, 2)
                             .join("")}
                         </span>
-                        {String(cell.getValue())}
+                        {content(cell.column.id, cell.getValue(), row.original)}
                       </span>
                     ) : (
                       flexRender(cell.column.columnDef.cell, cell.getContext())

@@ -1,8 +1,12 @@
+import {
+  BookingPolicyForm,
+  CategoryManager,
+} from "@/components/catalog-settings";
 import { modules } from "@/features/registry";
 import { ModulePlaceholder } from "@/components/module-placeholder";
 import { ModuleDirectory } from "@/components/module-directory";
 import { requireTenant } from "@/server/authorization";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getWorkspace } from "@/server/queries";
 import { canManage, type businessSchema } from "@/lib/validation";
 import { DataTable } from "@/components/data-table";
@@ -12,7 +16,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeading } from "@/components/ui/page-heading";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ActivityOverview } from "@/components/activity-overview";
 import { AppointmentList } from "@/components/appointment-list";
 import type { z } from "zod";
 import { StaffEditor } from "@/features/staff/staff-editor";
@@ -39,10 +42,6 @@ const config = {
     title: "Business settings",
     desc: "The essentials that keep your workspace running your way.",
   },
-  analytics: {
-    title: "Activity insights",
-    desc: "A clear picture of recorded appointment activity. Real records, no guesswork.",
-  },
 };
 export default async function Page({
   params,
@@ -50,6 +49,10 @@ export default async function Page({
   params: Promise<{ businessId: string; section: string }>;
 }) {
   const { businessId, section } = await params;
+  if (section === "analytics") {
+    await requireTenant(businessId);
+    redirect(`/app/${businessId}/reports`);
+  }
   if (!Object.hasOwn(config, section)) {
     const scope = await requireTenant(businessId);
     if (section === "modules")
@@ -57,6 +60,8 @@ export default async function Page({
         <ModuleDirectory
           businessId={businessId}
           platformAdmin={scope.user.platformAdmin}
+          businessSlug={scope.business.slug}
+          canManage={canManage(scope.member.role)}
         />
       );
     const feature = modules.find((m) => m.route === section);
@@ -67,8 +72,7 @@ export default async function Page({
   const data = await getWorkspace(businessId);
   const { business, member } = data;
   const manage = canManage(member.role);
-  const count =
-    key === "analytics" || key === "settings" ? null : data[key].length;
+  const count = key === "settings" ? null : data[key].length;
   return (
     <>
       <PageHeading
@@ -118,6 +122,9 @@ export default async function Page({
                 timezone: business.timezone,
               }}
             />
+            {manage && (
+              <BookingPolicyForm businessId={businessId} policy={business} />
+            )}
           </Card>
           <Card className="bg-sky-soft">
             <Badge tone="sky">Regional preferences</Badge>
@@ -129,22 +136,6 @@ export default async function Page({
             </p>
           </Card>
         </div>
-      ) : key === "analytics" ? (
-        <div className="grid items-start gap-6 lg:grid-cols-2">
-          <ActivityOverview statuses={data.appointments.map((a) => a.status)} />
-          <Card>
-            <Badge tone="sky">About these insights</Badge>
-            <h2 className="mt-4 text-lg font-bold">
-              Your records, made clearer
-            </h2>
-            <p className="mt-3 text-sm leading-7 text-muted-foreground">
-              This view summarizes up to the 100 most recent recorded
-              appointments. Counts represent appointment statuses, with no
-              inferred revenue or growth estimates. Full historical and
-              financial analytics are not available yet.
-            </p>
-          </Card>
-        </div>
       ) : key === "appointments" ? (
         <AppointmentList
           businessId={businessId}
@@ -153,7 +144,7 @@ export default async function Page({
           appointments={data.appointments.map((a) => ({
             id: a.id,
             customer: a.customer.name,
-            service: a.service.name,
+            service: a.serviceNameSnapshot ?? a.service.name,
             staff: a.staff.name,
             startsAt: a.startsAt.toISOString(),
             endsAt: a.endsAt.toISOString(),
@@ -162,10 +153,18 @@ export default async function Page({
         />
       ) : (
         <>
+          {manage && key === "services" && (
+            <CategoryManager
+              businessId={businessId}
+              categories={data.categories}
+            />
+          )}
           {manage && (
             <RecordForm
               businessId={businessId}
               kind={key}
+              categories={data.categories}
+              catalog={data.services}
               currency={business.currency}
             />
           )}
@@ -175,6 +174,7 @@ export default async function Page({
                 readOnly={!manage}
                 businessId={businessId}
                 currency={business.currency}
+                categories={data.categories}
                 services={data.services.map((s) => ({
                   ...s,
                   price: s.price.toString(),
@@ -199,6 +199,8 @@ export default async function Page({
                   id: p.id,
                   name: p.name,
                   active: p.active,
+                  bufferBeforeMinutes: p.bufferBeforeMinutes,
+                  bufferAfterMinutes: p.bufferAfterMinutes,
                   serviceIds: p.services.map((r) => r.serviceId),
                   rules: p.availability.map((r) => ({
                     weekday: r.weekday,
@@ -232,12 +234,13 @@ export default async function Page({
           {key === "customers" && (
             <DataTable
               columns={[
-                { key: "name", label: "Customer" },
+                { key: "name", label: "Customer", hrefKey: "profileUrl" },
                 { key: "email", label: "Email address" },
                 { key: "phone", label: "Phone number" },
               ]}
               rows={data.customers.map((c) => ({
                 name: c.name,
+                profileUrl: `/app/${businessId}/customers/${c.id}`,
                 email: c.email ?? "—",
                 phone: c.phone ?? "—",
               }))}

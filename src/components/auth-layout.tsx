@@ -34,14 +34,14 @@ export function AuthLayout({
         <section className="relative hidden min-w-0 lg:block">
           <p className="eyebrow mb-5 flex items-center gap-2">
             <Sparkles size={14} />
-            Make every day flow
+            Appointments · Clients · Growth
           </p>
           <h2 className="max-w-lg text-[clamp(2.5rem,4vw,3rem)] font-bold leading-[1.12]">
-            A little more
+            Less busywork.
             <br />
-            organized.
+            More good days.
             <br />
-            <span className="text-primary-ink">A lot more possible.</span>
+            <span className="text-primary-ink">Room to grow.</span>
           </h2>
           <p className="mt-6 max-w-md text-base leading-7 text-muted-foreground">
             Your people, your services, your next great day. Bring it all
@@ -49,7 +49,7 @@ export function AuthLayout({
           </p>
           <div
             aria-hidden="true"
-            className="relative mt-10 max-w-md rounded-[2rem] border border-primary/15 bg-card/70 p-6 shadow-float"
+            className="relative mt-10 max-w-md rounded-2xl border border-primary/15 bg-card/70 p-6 shadow-card"
           >
             <div className="absolute -right-4 -top-4 grid size-14 rotate-12 place-items-center rounded-2xl bg-amber-soft text-amber-ink">
               <Sparkles size={26} />
@@ -96,7 +96,7 @@ export function AuthLayout({
             secure workspace for every business.
           </p>
         </section>
-        <section className="surface w-full max-w-lg justify-self-center p-6 sm:p-9 lg:max-w-none">
+        <section className="surface auth-panel w-full max-w-lg justify-self-center p-6 sm:p-9 lg:max-w-none">
           <div className="mb-7">
             <span className="icon-tile tone-purple mb-5">
               <CalendarDays size={22} />

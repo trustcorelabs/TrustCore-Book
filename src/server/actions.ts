@@ -31,6 +31,23 @@ import {
   transferBusinessOwnership,
 } from "./membership";
 export type { ActionResult } from "./services";
+export async function rescheduleRecordedAppointment(
+  businessId: string,
+  input: unknown,
+) {
+  const { rescheduleAppointmentService } = await import("./rescheduling");
+  const result = await rescheduleAppointmentService(businessId, input);
+  if (result.success) revalidatePath(`/app/${businessId}`, "layout");
+  return result;
+}
+export async function lookupBooking(token: unknown) {
+  const { lookupManagedBooking } = await import("./booking-management");
+  return lookupManagedBooking(token, await bookingClientId());
+}
+export async function cancelBookingByLink(token: unknown) {
+  const { cancelCustomerBooking } = await import("./booking-management");
+  return cancelCustomerBooking(token, await bookingClientId());
+}
 export async function loadPublicSlots(input: unknown) {
   return getPublicSlots(input, await bookingClientId());
 }
@@ -155,5 +172,44 @@ export async function deleteMember(businessId: string, id: string) {
 export async function handOffOwnership(businessId: string, id: string) {
   const result = await transferBusinessOwnership(businessId, id);
   if (result.success) revalidatePath(`/app/${businessId}/members`);
+  return result;
+}
+
+export async function loadCustomerRescheduleSlots(
+  token: unknown,
+  date: unknown,
+) {
+  const { customerRescheduleSlots } = await import("./booking-management");
+  return customerRescheduleSlots(token, date, await bookingClientId());
+}
+export async function moveCustomerBooking(token: unknown, input: unknown) {
+  const { rescheduleCustomerBooking } = await import("./booking-management");
+  return rescheduleCustomerBooking(token, input, await bookingClientId());
+}
+export async function updateBookingPolicy(businessId: string, input: unknown) {
+  const { saveBookingPolicy } = await import("./catalog");
+  const result = await saveBookingPolicy(businessId, input);
+  if (result.success) revalidatePath(`/app/${businessId}`, "layout");
+  return result;
+}
+export async function updateServiceCategory(
+  businessId: string,
+  input: unknown,
+) {
+  const { saveCategory } = await import("./catalog");
+  const result = await saveCategory(businessId, input);
+  if (result.success) revalidatePath(`/app/${businessId}`, "layout");
+  return result;
+}
+
+export async function updateBookingEmailPreference(token: unknown, enabled: unknown) {
+  const { updateCustomerNotificationPreference } = await import("./booking-management");
+  return updateCustomerNotificationPreference(token, enabled, await bookingClientId());
+}
+export async function changeBillingTrial(businessId: string, cancel: boolean) {
+  const { changeSandboxTrial } = await import("./billing");
+  if (typeof cancel !== "boolean") return { error: "Invalid trial request." };
+  const result = await changeSandboxTrial(businessId, cancel);
+  if (result.success) revalidatePath(`/app/${businessId}`, "layout");
   return result;
 }

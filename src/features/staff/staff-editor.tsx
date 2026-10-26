@@ -2,7 +2,7 @@
 
 import { CalendarDays, Clock3, Pencil } from "lucide-react";
 import { StatusBadge } from "@/components/ui/badge";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addStaffTimeOff,
@@ -18,6 +18,8 @@ type Staff = {
   id: string;
   name: string;
   active: boolean;
+  bufferBeforeMinutes?: number;
+  bufferAfterMinutes?: number;
   serviceIds: string[];
   rules: Rule[];
   timeOff: { id: string; startsAt: string; endsAt: string }[];
@@ -56,10 +58,13 @@ function StaffRow({
 }) {
   const router = useRouter();
   const [name, setName] = useState(staff.name);
+  const [before, setBefore] = useState(staff.bufferBeforeMinutes ?? 0),
+    [after, setAfter] = useState(staff.bufferAfterMinutes ?? 0);
   const [active, setActive] = useState(staff.active);
   const [assigned, setAssigned] = useState(staff.serviceIds);
   const [rules, setRules] = useState<Rule[]>(staff.rules);
   const [busy, setBusy] = useState(false);
+  const [refreshing, startRefresh] = useTransition();
   const [message, setMessage] = useState("");
   const setDay = (weekday: number, rule?: Rule) =>
     setRules((current) => [
@@ -74,9 +79,11 @@ function StaffRow({
         id: staff.id,
         name,
         active,
+        bufferBeforeMinutes: before,
+        bufferAfterMinutes: after,
       });
       setMessage(result.error ?? result.success ?? "");
-      if (result.success) router.refresh();
+      if (result.success) startRefresh(() => router.refresh());
     } catch {
       setMessage("Unable to save staff details.");
     } finally {
@@ -93,7 +100,7 @@ function StaffRow({
         rules,
       });
       setMessage(result.error ?? result.success ?? "");
-      if (result.success) router.refresh();
+      if (result.success) startRefresh(() => router.refresh());
     } catch {
       setMessage("Unable to save schedule.");
     } finally {
@@ -112,7 +119,7 @@ function StaffRow({
         endTime: form.get("endTime"),
       });
       setMessage(result.error ?? result.success ?? "");
-      if (result.success) router.refresh();
+      if (result.success) startRefresh(() => router.refresh());
     } catch {
       setMessage("Unable to save time off.");
     } finally {
@@ -125,7 +132,7 @@ function StaffRow({
     try {
       const result = await removeStaffTimeOff(businessId, staff.id, id);
       setMessage(result.error ?? result.success ?? "");
-      if (result.success) router.refresh();
+      if (result.success) startRefresh(() => router.refresh());
     } catch {
       setMessage("Unable to remove time off.");
     } finally {
@@ -183,7 +190,11 @@ function StaffRow({
   return (
     <details className="editor-card">
       <summary>{summary}</summary>
-      <div className="mt-5 grid gap-6 xl:grid-cols-2">
+      <fieldset
+        disabled={busy || refreshing}
+        aria-busy={busy || refreshing}
+        className="mt-5 grid min-w-0 gap-6 xl:grid-cols-2"
+      >
         <section aria-label={`${staff.name} details`}>
           <label htmlFor={`staff-name-${staff.id}`}>Name</label>
           <Input
@@ -201,6 +212,30 @@ function StaffRow({
             />{" "}
             Active for new bookings
           </label>
+          <div className="my-4 grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                ["before", before, setBefore],
+                ["after", after, setAfter],
+              ] as const
+            ).map(([key, value, set]) => (
+              <div key={key}>
+                <label htmlFor={`${staff.id}-${key}`}>
+                  Buffer {key} (minutes)
+                </label>
+                <input
+                  className="input"
+                  id={`${staff.id}-${key}`}
+                  type="number"
+                  min="0"
+                  max="180"
+                  required
+                  value={value}
+                  onChange={(e) => set(Number(e.target.value))}
+                />
+              </div>
+            ))}
+          </div>
           <Button
             className="mt-4"
             type="button"
@@ -398,7 +433,7 @@ function StaffRow({
             )}
           </div>
         </section>
-      </div>
+      </fieldset>
       {message && (
         <p role="status" className="notice mt-4">
           {message}

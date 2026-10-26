@@ -27,11 +27,11 @@ export default async function Layout({
         }))}
       />
       <div className="min-w-0 flex-1">
-        <header className="border-b border-border bg-card/90">
+        <header className="workspace-topbar border-b border-border">
           <div className="workspace-shell flex min-h-20 flex-wrap items-center justify-between gap-3 py-4">
             <div className="min-w-0">
               <p className="text-[11px] text-muted-foreground">
-                Workspace / {member.role.toLowerCase()}
+                Your workspace · {member.role.toLowerCase()}
               </p>
               <p className="mt-1 max-w-[14rem] truncate text-sm font-semibold">
                 {business.name}
@@ -39,7 +39,7 @@ export default async function Layout({
             </div>
             <div className="flex items-center gap-3">
               <div className="hidden sm:block">
-                <Badge tone="teal">Business workspace</Badge>
+                <Badge tone="teal">Your business, connected</Badge>
               </div>
               <div className="hidden sm:block">
                 <ThemeSelect />

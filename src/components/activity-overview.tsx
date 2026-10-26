@@ -12,13 +12,13 @@ export function ActivityOverview({ statuses }: { statuses: string[] }) {
   return (
     <Card>
       <div className="mb-6 flex items-center gap-3">
-        <span className="icon-tile tone-green">
+        <span className="icon-tile tone-purple">
           <ChartNoAxesCombined size={20} />
         </span>
         <div>
           <h2 className="font-semibold">Appointment activity</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Status breakdown · latest {statuses.length} records
+            Status breakdown · {statuses.length} scheduled records
           </p>
         </div>
       </div>
@@ -56,7 +56,7 @@ export function ActivityOverview({ statuses }: { statuses: string[] }) {
           })}
         </dl>
       ) : (
-        <div className="rounded-2xl border border-dashed border-border bg-background px-5 py-9 text-center">
+        <div className="rounded-xl border border-dashed border-border bg-background px-5 py-9 text-center">
           <p className="text-sm font-semibold">
             Your activity story starts here
           </p>

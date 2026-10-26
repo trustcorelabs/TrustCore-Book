@@ -1,4 +1,5 @@
 import "server-only";
+import { readCategories } from "./repositories/catalog";
 import {
   requireTenant,
   requireUser,
@@ -8,20 +9,27 @@ import { readWorkspace, readDashboardCounts } from "./repositories/workspace";
 import { listMemberships } from "./repositories/membership";
 import { readPlatformOverview } from "./repositories/platform";
 import { findPublicBusiness } from "./repositories/public-booking";
+import { readAudit } from "./repositories/insights";
+import { canManage } from "@/lib/validation";
 import { rateLimit } from "./rate-limit";
 export async function getWorkspace(businessId: string) {
   const scope = await requireTenant(businessId);
   const [services, staff, customers, appointments] = await readWorkspace(
     scope.context,
   );
-  return { ...scope, services, staff, customers, appointments };
+  const categories = await readCategories(businessId);
+  return { ...scope, services, staff, customers, appointments, categories };
 }
 export async function getDashboard(businessId: string) {
   const scope = await requireTenant(businessId);
-  const [appointments, services, staff, customers] = await readDashboardCounts(
-    scope.context,
-  );
-  return { ...scope, appointments, services, staff, customers };
+  const [[appointments, services, staff, customers], recentActivity] =
+    await Promise.all([
+      readDashboardCounts(scope.context),
+      canManage(scope.member.role)
+        ? readAudit(scope.context, 5)
+        : Promise.resolve([]),
+    ]);
+  return { ...scope, appointments, services, staff, customers, recentActivity };
 }
 export async function getNavigation(businessId: string) {
   const scope = await requireTenant(businessId);

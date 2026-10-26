@@ -14,10 +14,16 @@ export function ModulePlaceholder({ module }: { module: ModuleDefinition }) {
         <span className="icon-tile tone-amber mb-5">
           <Construction size={22} aria-hidden="true" />
         </span>
-        <h2 className="text-xl font-semibold">Not implemented</h2>
+        <h2 className="text-xl font-semibold">
+          {module.status === "planned"
+            ? "Not implemented"
+            : module.status === "gated"
+              ? "Feature gated"
+              : "Partially implemented"}
+        </h2>
         <p className="mt-3 text-sm leading-7 text-muted-foreground">
-          This module’s full workflow is planned. No action is available here
-          yet.
+          This screen does not provide additional actions. The description above
+          identifies the implemented capabilities and remaining requirements.
         </p>
       </Card>
     </section>

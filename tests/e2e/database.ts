@@ -24,10 +24,12 @@ export async function sql(query: string) {
         PGPASSWORD: decodeURIComponent(target.password),
         PGDATABASE: target.pathname.slice(1),
         PGSSLMODE: target.hostname === "127.0.0.1" ? "disable" : "verify-full",
-        PGCONNECT_TIMEOUT: "5",
+        PGCONNECT_TIMEOUT: "30",
         PGSERVICEFILE: "/dev/null",
+        PGPASSFILE: "/dev/null",
+        PGSSLROOTCERT: "system",
       },
-      timeout: 15000,
+      timeout: 60000,
     },
   );
   return result.stdout.trim();

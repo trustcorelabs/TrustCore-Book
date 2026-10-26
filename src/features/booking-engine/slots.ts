@@ -1,3 +1,4 @@
+import { occupiedInterval } from "./policy";
 export type ScheduleRule = {
   weekday: number;
   startMinute: number;
@@ -7,13 +8,20 @@ export type TimeBlock = { startsAt: Date; endsAt: Date };
 
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
 export function businessLocalDate(instant: Date, timezone: string) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(instant);
+  let formatter = dateFormatters.get(timezone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    if (dateFormatters.size >= 128) dateFormatters.clear();
+    dateFormatters.set(timezone, formatter);
+  }
+  const parts = formatter.formatToParts(instant);
   const value = (type: string) =>
     parts.find((part) => part.type === type)?.value ?? "";
   return `${value("year")}-${value("month")}-${value("day")}`;
@@ -78,8 +86,11 @@ export function isBookableInterval(input: {
   rules: ScheduleRule[];
   exceptions: TimeBlock[];
   appointments: TimeBlock[];
+  bufferBeforeMinutes?: number;
+  bufferAfterMinutes?: number;
 }) {
-  const { startsAt, endsAt, timezone, rules, exceptions, appointments } = input;
+  const { timezone, rules, exceptions, appointments } = input;
+  const { startsAt, endsAt } = occupiedInterval(input);
   if (!(endsAt > startsAt)) return false;
   const start = localParts(startsAt, timezone);
   const end = localParts(new Date(endsAt.getTime() - 1), timezone);
@@ -115,6 +126,10 @@ export function computeSlots(input: {
   exceptions: TimeBlock[];
   appointments: TimeBlock[];
   now?: Date;
+  bufferBeforeMinutes?: number;
+  bufferAfterMinutes?: number;
+  bookingLeadMinutes?: number;
+  bookingHorizonDays?: number;
 }) {
   const {
     from,
@@ -137,13 +152,19 @@ export function computeSlots(input: {
     Math.ceil(
       Math.max(
         from.getTime(),
-        (input.now ?? new Date()).getTime() + 60 * 60_000,
+        (input.now ?? new Date()).getTime() +
+          (input.bookingLeadMinutes ?? 60) * 60_000,
       ) / 60_000,
     ) * 60_000;
   const slots: TimeBlock[] = [];
   for (
     let time = first;
-    time + durationMinutes * 60_000 <= to.getTime();
+    time + durationMinutes * 60_000 <=
+    Math.min(
+      to.getTime(),
+      (input.now ?? new Date()).getTime() +
+        (input.bookingHorizonDays ?? 60) * 86400000,
+    );
     time += 60_000
   ) {
     const startsAt = new Date(time);
@@ -167,6 +188,8 @@ export function computeSlots(input: {
         rules,
         exceptions,
         appointments,
+        bufferBeforeMinutes: input.bufferBeforeMinutes,
+        bufferAfterMinutes: input.bufferAfterMinutes,
       })
     )
       slots.push({ startsAt, endsAt });

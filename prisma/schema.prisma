@@ -1,5 +1,5 @@
-// Phase A1/A2 and booking additions require coordinated forward migrations.
-// The booking migration is PREPARED, NOT APPLIED; do not enable booking on an old schema.
+// New product schema requires its forward migration before this release is deployed.
+// Keep hosted booking/membership disabled until the disposable-branch rehearsal passes.
 generator client {
   provider = "prisma-client"
   output = "../src/generated/prisma"
@@ -47,6 +47,10 @@ model Business {
   country String
   currency String
   timezone String
+  bookingLeadMinutes Int @default(60)
+  cancellationNoticeMinutes Int @default(60)
+  rescheduleNoticeMinutes Int @default(60)
+  bookingHorizonDays Int @default(60)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   members BusinessMember[]
   invitations BusinessInvitation[]
@@ -55,6 +59,11 @@ model Business {
   customers Customer[]
   appointments Appointment[]
   bookingRequests BookingRequest[]
+  bookingMutations BookingMutation[]
+  notificationJobs NotificationJob[]
+  payments SandboxPayment[]
+  subscription SandboxSubscription?
+  categories ServiceCategory[]
   auditLogs AuditLog[]
 }
 model BusinessMember {
@@ -89,6 +98,8 @@ model BusinessInvitation {
   @@index([acceptedById])
 }
 model Staff {
+  bufferBeforeMinutes Int @default(0)
+  bufferAfterMinutes Int @default(0)
   id String @id @default(cuid())
   businessId String
   name String
@@ -101,6 +112,13 @@ model Staff {
   @@unique([businessId, id])
 }
 model Service {
+  kind String @default("SERVICE")
+  categoryId String?
+  bufferBeforeMinutes Int @default(0)
+  bufferAfterMinutes Int @default(0)
+  category ServiceCategory? @relation(fields: [businessId, categoryId], references: [businessId, id], onDelete: Restrict)
+  components ServiceComponent[] @relation("Package")
+  usedBy ServiceComponent[] @relation("Component")
   id String @id @default(cuid())
   businessId String
   name String
@@ -122,6 +140,7 @@ model StaffService {
   @@index([businessId, serviceId])
 }
 model Customer {
+  appointmentEmailOptIn Boolean @default(false)
   id String @id @default(cuid())
   businessId String
   name String
@@ -166,12 +185,21 @@ model Appointment {
   // Snapshot pricing prevents later service edits changing historical totals.
   price Decimal @db.Decimal(12,2)
   currency String
+  serviceNameSnapshot String?
+  catalogSnapshot Json @default("[]")
+  bufferBeforeMinutes Int @default(0)
+  bufferAfterMinutes Int @default(0)
+  occupiedStartsAt DateTime @default(dbgenerated()) @db.Timestamptz(3)
+  occupiedEndsAt DateTime @default(dbgenerated()) @db.Timestamptz(3)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
   staff Staff @relation(fields: [businessId, staffId], references: [businessId, id], onDelete: Restrict)
   service Service @relation(fields: [businessId, serviceId], references: [businessId, id], onDelete: Restrict)
   customer Customer @relation(fields: [businessId, customerId], references: [businessId, id], onDelete: Restrict)
   bookingRequests BookingRequest[]
+  bookingMutations BookingMutation[]
+  notificationJobs NotificationJob[]
+  payments SandboxPayment[]
   @@unique([businessId, id])
   @@index([businessId, startsAt])
 }
@@ -225,4 +253,135 @@ model RateLimit {
   count Int @default(1)
   expiresAt DateTime @db.Timestamptz(3)
   @@index([expiresAt])
+}
+
+model ServiceCategory {
+  id String @id @default(cuid())
+  businessId String
+  name String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  services Service[]
+  @@unique([businessId, id])
+  @@unique([businessId, name])
+}
+model ServiceComponent {
+  businessId String
+  packageId String
+  componentId String
+  quantity Int @default(1)
+  package Service @relation("Package", fields: [businessId, packageId], references: [businessId, id], onDelete: Cascade)
+  component Service @relation("Component", fields: [businessId, componentId], references: [businessId, id], onDelete: Restrict)
+  @@id([businessId, packageId, componentId])
+  @@index([businessId, componentId])
+}
+model BookingMutation {
+  id String @id @default(cuid())
+  businessId String
+  appointmentId String
+  operationKey String
+  payloadHash String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  appointment Appointment @relation(fields: [businessId, appointmentId], references: [businessId, id], onDelete: Restrict)
+  @@unique([businessId, operationKey])
+  @@index([businessId, appointmentId])
+}
+
+model NotificationJob {
+  id String @id @default(cuid())
+  businessId String
+  appointmentId String
+  kind String
+  revision String
+  dedupKey String @unique
+  state String @default("PENDING")
+  scheduledFor DateTime @db.Timestamptz(3)
+  attempts Int @default(0)
+  firstAttemptAt DateTime? @db.Timestamptz(3)
+  leaseToken String?
+  leaseUntil DateTime? @db.Timestamptz(3)
+  providerReference String?
+  errorCode String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  appointment Appointment @relation(fields: [businessId, appointmentId], references: [businessId, id], onDelete: Restrict)
+  @@index([state, scheduledFor])
+  @@index([leaseUntil])
+  @@index([businessId, createdAt])
+}
+model SandboxPayment {
+  id String @id @default(cuid())
+  businessId String
+  appointmentId String?
+  operationKey String
+  payloadHash String
+  providerReference String? @unique
+  providerIntent String? @unique
+  currency String
+  amountMinor Int
+  paidMinor Int @default(0)
+  refundedMinor Int @default(0)
+  state String @default("PENDING")
+  mode String @default("TEST")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  appointment Appointment? @relation(fields: [businessId, appointmentId], references: [businessId, id], onDelete: Restrict)
+  events SandboxPaymentEvent[]
+  refunds SandboxRefund[]
+  @@unique([businessId, id])
+  @@unique([businessId, operationKey])
+  @@index([businessId, appointmentId])
+}
+model SandboxPaymentEvent {
+  id String @id @default(cuid())
+  businessId String
+  paymentId String
+  providerEventId String @unique
+  payloadHash String
+  eventType String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  payment SandboxPayment @relation(fields: [businessId, paymentId], references: [businessId, id], onDelete: Restrict)
+}
+model SandboxRefund {
+  id String @id @default(cuid())
+  businessId String
+  paymentId String
+  operationKey String
+  amountMinor Int
+  state String @default("PENDING")
+  providerReference String? @unique
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  payment SandboxPayment @relation(fields: [businessId, paymentId], references: [businessId, id], onDelete: Restrict)
+  @@unique([businessId, operationKey])
+  @@index([businessId, paymentId])
+}
+model SandboxSubscription {
+  id String @id @default(cuid())
+  businessId String @unique
+  plan String @default("FREE")
+  state String @default("FREE")
+  mode String @default("TEST")
+  trialUsed Boolean @default(false)
+  trialEndsAt DateTime? @db.Timestamptz(3)
+  periodEndsAt DateTime? @db.Timestamptz(3)
+  graceEndsAt DateTime? @db.Timestamptz(3)
+  cancelAtPeriodEnd Boolean @default(false)
+  providerReference String? @unique
+  lastProviderCreated Int @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  events SandboxSubscriptionEvent[]
+  @@unique([businessId, id])
+}
+model SandboxSubscriptionEvent {
+  id String @id @default(cuid())
+  businessId String
+  subscriptionId String
+  providerEventId String @unique
+  payloadHash String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  subscription SandboxSubscription @relation(fields: [businessId, subscriptionId], references: [businessId, id], onDelete: Restrict)
 }

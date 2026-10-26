@@ -10,12 +10,18 @@ const mocks = vi.hoisted(() => ({
   appointmentUpdateMany: vi.fn(),
   appointmentCount: vi.fn(),
   exceptionCreate: vi.fn(),
+  componentCount: vi.fn(),
+  componentDelete: vi.fn(),
 }));
 vi.mock("@/lib/db", () => ({
   db: () => ({
     $transaction: (callback: (tx: unknown) => unknown) =>
       callback({
         $queryRaw: (...args: unknown[]) => mocks.membershipLock(...args),
+        serviceComponent: {
+          count: mocks.componentCount,
+          deleteMany: mocks.componentDelete,
+        },
         service: {
           create: mocks.serviceCreate,
           updateMany: mocks.serviceUpdateMany,
@@ -54,6 +60,9 @@ const profile = {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.auditCreate.mockResolvedValue({ id: "audit-test" });
+  mocks.componentCount.mockResolvedValue(0);
+  mocks.componentDelete.mockResolvedValue({ count: 0 });
   mocks.serviceCreate.mockResolvedValue({ id: "service-1" });
 });
 
@@ -68,7 +77,16 @@ describe("workspace write authorization (transaction mocked)", () => {
       await expect(
         insertRecord(scope, {
           kind: "services",
-          input: { name: "Service", durationMinutes: 30, price: "10.00" },
+          input: {
+            name: "Service",
+            durationMinutes: 30,
+            price: "10.00",
+            kind: "SERVICE",
+            categoryId: null,
+            bufferBeforeMinutes: 0,
+            bufferAfterMinutes: 0,
+            components: [],
+          },
         }),
       ).rejects.toThrow("Tenant write denied");
       expect(mocks.serviceCreate).not.toHaveBeenCalled();
@@ -132,6 +150,11 @@ describe("workspace write authorization (transaction mocked)", () => {
       kind: "services",
       input: {
         id: "service-1",
+        kind: "SERVICE",
+        categoryId: null,
+        bufferBeforeMinutes: 0,
+        bufferAfterMinutes: 0,
+        components: [],
         name: "Updated",
         durationMinutes: 45,
         price: "10.00",
@@ -146,6 +169,10 @@ describe("workspace write authorization (transaction mocked)", () => {
         durationMinutes: 45,
         price: "10.00",
         active: false,
+        kind: "SERVICE",
+        categoryId: null,
+        bufferBeforeMinutes: 0,
+        bufferAfterMinutes: 0,
       },
     });
     expect(mocks.appointmentUpdateMany).toHaveBeenCalledWith({
@@ -173,8 +200,8 @@ describe("workspace write authorization (transaction mocked)", () => {
         businessId: "b1",
         staffId: "staff-1",
         status: { not: "CANCELLED" },
-        startsAt: { lt: to },
-        endsAt: { gt: from },
+        occupiedStartsAt: { lt: to },
+        occupiedEndsAt: { gt: from },
       },
     });
     expect(mocks.exceptionCreate).not.toHaveBeenCalled();

@@ -4,6 +4,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useRef } from "react";
 import {
   CalendarDays,
+  CalendarRange,
+  FileChartColumn,
+  ScrollText,
   LayoutDashboard,
   Sparkles,
   Users,
@@ -16,13 +19,15 @@ import {
   Menu,
   X,
   PanelLeftClose,
-  ChartNoAxesCombined,
 } from "lucide-react";
 import { ThemeSelect } from "./theme-select";
 import { Brand } from "./brand";
 import { cn } from "@/lib/utils";
+import { useHydrated } from "@/hooks/use-hydrated";
 const items = [
-  { path: "", label: "Overview", icon: LayoutDashboard, tone: "purple" },
+  { path: "", label: "Dashboard", icon: LayoutDashboard, tone: "purple" },
+  { path: "calendar", label: "Calendar", icon: CalendarRange, tone: "sky" },
+  { path: "reports", label: "Reports", icon: FileChartColumn, tone: "purple" },
   {
     path: "appointments",
     label: "Appointments",
@@ -32,12 +37,6 @@ const items = [
   { path: "services", label: "Services", icon: Sparkles, tone: "pink" },
   { path: "staff", label: "Staff", icon: Users, tone: "teal" },
   { path: "customers", label: "Customers", icon: Contact, tone: "amber" },
-  {
-    path: "analytics",
-    label: "Activity insights",
-    icon: ChartNoAxesCombined,
-    tone: "green",
-  },
 ];
 export function WorkspaceNav({
   businessId,
@@ -52,6 +51,7 @@ export function WorkspaceNav({
   canManageMembers: boolean;
   businesses: { id: string; name: string }[];
 }) {
+  const hydrated = useHydrated();
   const path = usePathname();
   const router = useRouter();
   const drawer = useRef<HTMLDialogElement>(null);
@@ -62,11 +62,12 @@ export function WorkspaceNav({
       <div className="mb-8 px-2">
         <Brand />
       </div>
-      <div className="mb-7 rounded-2xl border border-border bg-background p-3">
+      <div className="mb-7 rounded-xl border border-border bg-background p-3">
         <p className="eyebrow mb-2">Business workspace</p>
         <select
           aria-label="Business workspace"
           title={name}
+          disabled={!hydrated}
           className="input h-10 font-semibold"
           value={businessId}
           onChange={(e) => {
@@ -110,7 +111,9 @@ export function WorkspaceNav({
               <span
                 className={cn(
                   "grid size-8 place-items-center rounded-lg",
-                  `tone-${item.tone}`,
+                  active
+                    ? "bg-primary/10 text-primary-ink"
+                    : "text-muted-foreground",
                 )}
               >
                 <item.icon size={17} aria-hidden="true" />
@@ -141,6 +144,16 @@ export function WorkspaceNav({
           </Link>
         )}
       </nav>
+      {canManageMembers && (
+        <Link
+          href={`${base}/audit`}
+          onClick={close}
+          className="mt-2 flex min-h-11 items-center gap-3 rounded-xl px-3 py-3 text-[13px] font-medium text-muted-foreground hover:bg-muted"
+        >
+          <ScrollText size={17} />
+          Audit log
+        </Link>
+      )}
       <div className="mt-7 border-t border-border pt-5">
         <p className="eyebrow mb-3 px-3 text-muted-foreground">Manage</p>
         {[
@@ -170,7 +183,7 @@ export function WorkspaceNav({
         </div>
         <div className="rounded-2xl bg-teal-soft p-4">
           <p className="text-sm font-semibold text-teal-ink">
-            Your business, beautifully connected.
+            A little more room for your craft.
           </p>
           <Link
             onClick={close}
@@ -189,7 +202,7 @@ export function WorkspaceNav({
   );
   return (
     <>
-      <aside className="sticky top-0 hidden h-dvh w-[264px] shrink-0 flex-col overflow-y-auto border-r border-border bg-card px-4 py-7 lg:flex">
+      <aside className="sticky top-0 hidden h-dvh w-[248px] shrink-0 flex-col overflow-y-auto border-r border-border workspace-sidebar bg-card px-4 py-6 lg:flex">
         {content}
       </aside>
       <div className="flex items-center justify-between border-b border-border bg-card px-4 py-4 lg:hidden">
@@ -198,6 +211,8 @@ export function WorkspaceNav({
           type="button"
           aria-label="Open navigation"
           aria-haspopup="dialog"
+          disabled={!hydrated}
+          aria-busy={!hydrated}
           onClick={() => drawer.current?.showModal()}
           className="grid size-11 place-items-center rounded-xl border border-border"
         >
@@ -207,7 +222,7 @@ export function WorkspaceNav({
       <dialog
         ref={drawer}
         aria-label="Workspace navigation"
-        className="fixed inset-y-0 left-0 m-0 h-dvh max-h-dvh w-[min(320px,90vw)] border-0 bg-card p-5 text-foreground shadow-float backdrop:bg-foreground/35"
+        className="workspace-sidebar fixed inset-y-0 left-0 m-0 h-dvh max-h-dvh w-[min(320px,90vw)] border-0 bg-card p-5 text-foreground shadow-float backdrop:bg-foreground/35"
         onClick={(e) => {
           if (e.target === e.currentTarget) {
             const rect = e.currentTarget.getBoundingClientRect();
@@ -224,7 +239,7 @@ export function WorkspaceNav({
             type="button"
             aria-label="Close navigation"
             onClick={close}
-            className="grid size-10 place-items-center rounded-xl hover:bg-muted"
+            className="grid size-11 place-items-center rounded-xl hover:bg-muted"
           >
             <X size={20} />
           </button>

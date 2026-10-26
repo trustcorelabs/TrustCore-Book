@@ -76,6 +76,33 @@ export const businessSchema = z.object({
 export const serviceSchema = z.object({
   name: z.string().trim().min(2).max(100),
   durationMinutes: z.coerce.number().int().min(5).max(720),
+  kind: z.enum(["SERVICE", "PACKAGE", "ADDON"]).default("SERVICE"),
+  categoryId: z
+    .union([z.string().cuid(), z.literal(""), z.null()])
+    .default(null)
+    .transform((v) => v || null),
+  bufferBeforeMinutes: z.coerce.number().int().min(0).max(180).default(0),
+  bufferAfterMinutes: z.coerce.number().int().min(0).max(180).default(0),
+  components: z.preprocess(
+    (v) => {
+      if (typeof v !== "string") return v;
+      if (v.length > 2048) return null;
+      try {
+        return JSON.parse(v);
+      } catch {
+        return null;
+      }
+    },
+    z
+      .array(
+        z.object({
+          componentId: z.string().cuid(),
+          quantity: z.number().int().min(1).max(10),
+        }),
+      )
+      .max(10)
+      .default([]),
+  ),
   price: z
     .string()
     .regex(
@@ -91,6 +118,8 @@ export const serviceEditSchema = serviceSchema.extend({
   active: z.boolean(),
 });
 export const staffEditSchema = staffSchema.extend({
+  bufferBeforeMinutes: z.coerce.number().int().min(0).max(180).default(0),
+  bufferAfterMinutes: z.coerce.number().int().min(0).max(180).default(0),
   id: z.string().cuid(),
   active: z.boolean(),
 });
@@ -129,3 +158,10 @@ export function canManage(role: string) {
     hasPermission(role, "records.manage")
   );
 }
+
+export const bookingPolicySchema = z.object({
+  bookingLeadMinutes: z.coerce.number().int().min(0).max(10080),
+  cancellationNoticeMinutes: z.coerce.number().int().min(0).max(10080),
+  rescheduleNoticeMinutes: z.coerce.number().int().min(0).max(10080),
+  bookingHorizonDays: z.coerce.number().int().min(1).max(180),
+});

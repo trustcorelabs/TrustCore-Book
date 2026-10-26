@@ -1,297 +1,305 @@
 export type ModuleDefinition = {
   id: string;
   title: string;
-  owner: "A" | "B" | "Shared";
   priority: "MVP" | "Later";
-  status: "foundation" | "scaffold";
+  status: "available" | "partial" | "gated" | "planned";
   route: string;
   summary: string;
   dependencies: string;
   acceptance: string;
+  flag?: "booking" | "membership" | "email";
+  managerOnly?: boolean;
 };
 export const modules = [
   {
     id: "authentication",
     title: "Authentication",
-    owner: "A",
     priority: "MVP",
-    status: "foundation",
+    status: "available",
     route: "/login",
     summary:
-      "Sign in securely and access your account. Account recovery and email verification are planned.",
+      "Registration, sign-in and sign-out with server-validated sessions.",
     dependencies: "users-sessions,security",
     acceptance:
-      "Authenticated user or generic rejection; no credential disclosure.",
+      "Authenticated access or generic rejection without credential disclosure.",
   },
   {
     id: "users-sessions",
-    title: "User and session management",
-    owner: "A",
+    title: "Account and sessions",
     priority: "MVP",
-    status: "foundation",
-    route: "users-sessions",
+    status: "available",
+    route: "/account",
     summary:
-      "Manage your account and signed-in devices. These controls are planned.",
+      "Update your profile or password, view sessions and sign out individual or all sessions.",
     dependencies: "authentication",
-    acceptance:
-      "Only the account owner can inspect or revoke sessions; expiry enforced server-side.",
+    acceptance: "Account-owner controls with server-side session revocation.",
   },
   {
     id: "business-onboarding",
     title: "Business onboarding",
-    owner: "A",
     priority: "MVP",
-    status: "foundation",
+    status: "available",
     route: "/onboarding",
-    summary: "Create your business workspace and set its essential details.",
-    dependencies: "authentication,businesses,permissions",
-    acceptance: "Business, owner membership and audit event commit atomically.",
+    summary:
+      "Create a business workspace with a booking address, country and timezone.",
+    dependencies: "authentication,permissions",
+    acceptance: "Business, owner membership and audit event commit together.",
   },
   {
     id: "businesses",
     title: "Business management",
-    owner: "A",
     priority: "MVP",
-    status: "foundation",
-    route: "businesses",
+    status: "available",
+    route: "settings",
     summary:
-      "Switch between your businesses. Additional business management tools are planned.",
+      "Switch between your workspaces and manage the current business profile.",
     dependencies: "authentication,permissions",
-    acceptance: "A user can access only businesses with current membership.",
+    acceptance: "Access is checked against current business membership.",
   },
   {
     id: "permissions",
-    title: "Role-based permissions",
-    owner: "A",
+    title: "Team invitations and membership",
     priority: "MVP",
-    status: "foundation",
-    route: "permissions",
+    status: "gated",
+    flag: "membership",
+    managerOnly: true,
+    route: "members",
     summary:
-      "Control who can access your workspace. Team invitation and role management screens are planned.",
-    dependencies: "authentication,users-sessions",
-    acceptance: "Member writes and cross-tenant reads are denied server-side.",
+      "Invitations, roles and ownership transfer are implemented behind the membership flag. Workspace RBAC is always enforced.",
+    dependencies: "authentication",
+    acceptance:
+      "Last-owner protection, invitation expiry and cross-tenant denial.",
   },
   {
     id: "services",
-    title: "Services and categories",
-    owner: "B",
+    title: "Services",
     priority: "MVP",
-    status: "foundation",
+    status: "available",
     route: "services",
     summary:
-      "Organize services, durations and prices. Categories and editing are planned.",
+      "Create and edit service names, durations, prices and active status. Categories and packages are not available.",
     dependencies: "businesses,permissions",
-    acceptance:
-      "Managers maintain tenant services; duration and money validate; categories remain explicit stubs.",
+    acceptance: "Server-owned prices and tenant-scoped service updates.",
   },
   {
     id: "staff",
     title: "Staff management",
-    owner: "B",
     priority: "MVP",
-    status: "foundation",
+    status: "available",
     route: "staff",
     summary:
-      "Keep your team directory together. Service assignments and profile editing are planned.",
+      "Manage staff profiles, service assignments, recurring working hours and time off.",
     dependencies: "businesses,services",
     acceptance:
-      "Staff belongs to the current tenant; assignments cannot cross tenants.",
+      "Assignments, schedules and exceptions remain in the current tenant.",
   },
   {
     id: "availability",
     title: "Working hours and availability",
-    owner: "B",
     priority: "MVP",
-    status: "scaffold",
-    route: "availability",
+    status: "available",
+    route: "staff",
     summary:
-      "Set working hours, days off and schedule exceptions. This workflow is planned.",
+      "Configure weekly working periods and time off. Public slot discovery remains feature-gated.",
     dependencies: "staff,localization",
     acceptance:
-      "Rules validate local weekday/minutes; exception intervals are positive UTC instants.",
+      "Working periods and time-off intervals validate in the business timezone.",
   },
   {
     id: "customers",
-    title: "Customer management",
-    owner: "B",
+    title: "Customer directory and history",
     priority: "MVP",
-    status: "foundation",
+    status: "partial",
     route: "customers",
     summary:
-      "Keep a customer directory for your business. Editing and retention tools are planned.",
+      "Create and search customers, open contact profiles and review recorded visits. Notes and consent preferences are not stored yet.",
     dependencies: "businesses,permissions",
     acceptance:
-      "Customer data is visible only to current tenant members; writes require a manager.",
+      "Customer profiles and nested visits are scoped to the business.",
   },
   {
     id: "appointments",
     title: "Appointment management",
-    owner: "B",
     priority: "MVP",
-    status: "foundation",
+    status: "available",
     route: "appointments",
     summary:
-      "Review recorded appointments. Creating, changing and cancelling appointments is planned.",
-    dependencies: "booking-engine,customers,staff,services",
+      "Review recorded appointments and manage confirmation, cancellation, completion and no-show status.",
+    dependencies: "customers,staff,services",
     acceptance:
-      "All transitions validate tenant ownership and write an audit event; no fake booking success.",
+      "Status changes check current manager membership and audit atomically.",
+  },
+  {
+    id: "calendar",
+    title: "Day, week and month calendar",
+    priority: "MVP",
+    status: "available",
+    route: "calendar",
+    summary:
+      "Browse appointments, filter staff/status, inspect details and see working-hours/time-off context. Mobile uses an accessible agenda.",
+    dependencies: "appointments,availability",
+    acceptance:
+      "Business timezone boundaries, bounded queries and no unsupported drag-to-reschedule.",
   },
   {
     id: "booking-engine",
     title: "Booking availability engine",
-    owner: "Shared",
     priority: "MVP",
-    status: "scaffold",
-    route: "booking-engine",
+    status: "gated",
+    flag: "booking",
+    route: "calendar",
     summary:
-      "Find appointment times that fit your services and team. Online availability is planned.",
-    dependencies: "availability,staff,services,localization",
+      "Slot discovery and idempotent transactional booking are implemented and gated. Signed customer lookup/cancellation and manager rescheduling are implemented. Customer-managed rescheduling and configurable buffers remain pending.",
+    dependencies: "availability,staff,services",
     acceptance:
-      "Reviewed DST rules, idempotency and concurrent conflict tests precede implementation.",
+      "Overlapping appointments and duplicate submissions are blocked.",
   },
   {
     id: "public-booking",
     title: "Public booking portal",
-    owner: "B",
     priority: "MVP",
-    status: "foundation",
+    status: "partial",
     route: "public-booking",
     summary:
-      "Share your public service menu. Online appointment scheduling is planned.",
-    dependencies: "booking-engine,security",
-    acceptance:
-      "Only explicit public DTO fields are returned; no customer or internal staff identifiers.",
+      "Public service menus are available. Slot selection and confirmation require the booking flag; no payment gateway is advertised.",
+    dependencies: "booking-engine",
+    acceptance: "Only explicit public business/service fields are exposed.",
   },
   {
     id: "notifications",
-    title: "Notifications and reminders",
-    owner: "B",
+    title: "Emails and reminders",
     priority: "MVP",
-    status: "scaffold",
+    status: "partial",
+    flag: "email",
     route: "notifications",
     summary:
-      "Send appointment confirmations and reminders. Delivery is not available yet.",
-    dependencies: "appointments,localization",
+      "Account email adapters exist, but require a verified provider. Appointment notification jobs and automatic reminder delivery are not active.",
+    dependencies: "appointments",
     acceptance:
-      "Provider configured explicitly; retries deduplicate; secrets and customer details are redacted.",
+      "No hosted local outbox, simulated delivery or unverified provider success.",
   },
   {
     id: "dashboard",
     title: "Business dashboard",
-    owner: "B",
     priority: "MVP",
-    status: "foundation",
+    status: "available",
     route: "",
-    summary: "View your business counts and workspace setup checklist.",
-    dependencies: "services,staff,customers,appointments",
-    acceptance:
-      "Counts are tenant-filtered database values, never fabricated metrics.",
+    summary:
+      "Actual workspace counts, upcoming appointments, activity breakdowns and a setup checklist.",
+    dependencies: "appointments,customers,staff,services",
+    acceptance: "No fabricated appointments, revenue, utilization or growth.",
   },
   {
     id: "analytics",
-    title: "Analytics and reports",
-    owner: "B",
-    priority: "Later",
-    status: "scaffold",
-    route: "analytics",
-    summary: "Explore business activity and reports. Reporting is planned.",
-    dependencies: "appointments,dashboard",
+    title: "Appointment reports",
+    priority: "MVP",
+    status: "available",
+    route: "reports",
+    summary:
+      "Date-filtered daily appointment totals, cancellation/no-show rates, service popularity and completed service time. Manager-only CSV export.",
+    dependencies: "appointments",
     acceptance:
-      "Date ranges have defined business timezone boundaries; tenant reports cannot leak data.",
+      "Business-local date boundaries, partial-data warnings and no price-as-revenue estimates.",
   },
   {
     id: "billing",
-    title: "Subscription plans and billing",
-    owner: "A",
+    title: "Subscription billing",
     priority: "Later",
-    status: "scaffold",
+    status: "planned",
     route: "billing",
-    summary: "Manage your subscription and invoices. Billing is planned.",
-    dependencies: "businesses,payments",
-    acceptance:
-      "Verified webhook events drive state; replay-safe entitlements enforce plan rules server-side.",
+    summary:
+      "Paid plans, trials and subscription entitlements are not active. Merchant and provider verification is required.",
+    dependencies: "payments",
+    acceptance: "No paid entitlement is granted from browser assertions.",
   },
   {
     id: "payments",
-    title: "Payment integrations",
-    owner: "A",
+    title: "Payments and deposits",
     priority: "Later",
-    status: "scaffold",
+    status: "planned",
     route: "payments",
     summary:
-      "Accept payments through a connected provider. Payment collection is planned.",
-    dependencies: "billing,security",
-    acceptance:
-      "Amounts and currency are server-owned; signed webhooks are idempotent; no raw card data.",
+      "Payment collection, deposits and refunds are not available. Regional merchant onboarding and verified test-mode integration are required.",
+    dependencies: "security",
+    acceptance: "No card data storage or simulated live payment success.",
   },
   {
     id: "platform-admin",
-    title: "Platform super admin",
-    owner: "A",
+    title: "Platform overview",
     priority: "MVP",
-    status: "foundation",
+    status: "partial",
     route: "/admin",
     summary:
-      "Review the platform’s business overview. Additional administration tools are planned.",
-    dependencies: "authentication,permissions,audit",
+      "Platform administrators can view the business overview. Broader administration tools are not implemented.",
+    dependencies: "permissions",
     acceptance:
-      "Platform permission is verified server-side; no implicit tenant write bypass.",
+      "Platform permission does not bypass tenant-write authorization.",
   },
   {
     id: "business-settings",
     title: "Business settings",
-    owner: "A",
     priority: "MVP",
-    status: "foundation",
+    status: "available",
     route: "settings",
-    summary:
-      "Update your business profile, public address and timezone. More settings are planned.",
-    dependencies: "businesses,permissions,localization",
-    acceptance:
-      "Only managers update validated settings; currency/country migration is an explicit workflow.",
+    summary: "Update the business name, public booking address and timezone.",
+    dependencies: "businesses,permissions",
+    acceptance: "Current manager membership and validated regional settings.",
   },
   {
     id: "localization",
-    title: "Localization and timezones",
-    owner: "Shared",
+    title: "Timezone and currency",
     priority: "MVP",
-    status: "foundation",
-    route: "localization",
+    status: "partial",
+    route: "settings",
     summary:
-      "Use your business’s local timezone and currency. Additional languages are planned.",
+      "Business-local dates and supported regional currencies are available. Additional interface languages are not implemented.",
     dependencies: "businesses",
-    acceptance:
-      "UTC persistence and IANA rendering are separate; DST gaps/folds require explicit policy.",
+    acceptance: "UTC storage is distinct from business-local presentation.",
   },
   {
     id: "audit",
-    title: "Audit logs",
-    owner: "A",
+    title: "Audit log",
     priority: "MVP",
-    status: "foundation",
+    status: "available",
+    managerOnly: true,
     route: "audit",
     summary:
-      "Review changes made in your workspace. The activity viewer is planned.",
-    dependencies: "businesses,permissions",
-    acceptance:
-      "Tenant-scoped immutable events omit credentials and sensitive payloads.",
+      "Owners and admins can search the latest 100 workspace audit events.",
+    dependencies: "permissions",
+    acceptance: "No cross-tenant event reads or credentials in event payloads.",
   },
   {
     id: "security",
-    title: "Security and monitoring",
-    owner: "A",
+    title: "Account security",
     priority: "MVP",
-    status: "foundation",
-    route: "security",
+    status: "partial",
+    route: "/account",
     summary:
-      "Manage workspace security and review service health. Monitoring controls are planned.",
-    dependencies: "authentication,permissions,audit",
-    acceptance:
-      "Health errors are redacted, distributed limits fail closed and private secrets never reach clients.",
+      "Password changes, session controls, permission checks and abuse limits are implemented. A service-monitoring console is not.",
+    dependencies: "authentication,permissions",
+    acceptance: "Private credentials remain server-only.",
   },
 ] as const satisfies readonly ModuleDefinition[];
-export function moduleHref(module: ModuleDefinition, businessId: string) {
+export function moduleHref(
+  module: ModuleDefinition,
+  businessId: string,
+  businessSlug?: string,
+) {
+  if (module.id === "public-booking" && businessSlug)
+    return `/book/${businessSlug}`;
   return module.route.startsWith("/")
     ? module.route
     : `/app/${businessId}${module.route ? `/${module.route}` : ""}`;
+}
+export function moduleLabel(
+  module: ModuleDefinition,
+  flags: { booking: boolean; membership: boolean; email: boolean },
+) {
+  if (module.flag && !flags[module.flag]) return "Disabled / not configured";
+  return {
+    available: "Available",
+    partial: "Partially available",
+    gated: "Enabled",
+    planned: "Not implemented",
+  }[module.status];
 }

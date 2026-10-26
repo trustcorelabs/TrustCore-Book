@@ -26,6 +26,13 @@ const config: NextConfig = {
         ],
       },
       {
+        source: "/manage-booking",
+        headers: [
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+        ],
+      },
+      {
         source: "/verify-email",
         headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
       },

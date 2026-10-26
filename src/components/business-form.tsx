@@ -14,6 +14,7 @@ import { z } from "zod";
 import { businessSchema, markets } from "@/lib/validation";
 import { onboard, updateBusiness } from "@/server/actions";
 import { Button } from "./ui/button";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { Input } from "./ui/input";
 type Values = z.infer<typeof businessSchema>;
 const subscribe = () => () => {};
@@ -51,6 +52,7 @@ export function BusinessForm({
   initial?: Values;
   readOnly?: boolean;
 }) {
+  const hydrated = useHydrated();
   const {
     register,
     handleSubmit,
@@ -102,6 +104,7 @@ export function BusinessForm({
   }
   return (
     <form
+      aria-busy={!hydrated || isSubmitting}
       onSubmit={(event) => {
         if (!businessId && step < 2) {
           event.preventDefault();
@@ -164,7 +167,10 @@ export function BusinessForm({
         </>
       )}
 
-      <fieldset disabled={readOnly || isSubmitting} className="space-y-5">
+      <fieldset
+        disabled={!hydrated || readOnly || isSubmitting}
+        className="space-y-5"
+      >
         <div hidden={!businessId && step !== 0} className="space-y-5">
           <div>
             <label htmlFor="business-name">Business name</label>

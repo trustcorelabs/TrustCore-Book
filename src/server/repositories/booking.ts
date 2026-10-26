@@ -4,6 +4,12 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { getEnv } from "@/lib/env";
+import { quoteCatalog } from "@/features/booking-engine/catalog";
+import {
+  policySelection,
+  inBookingWindow,
+} from "@/features/booking-engine/policy";
+import { enqueueAppointmentNotifications } from "./notification-jobs";
 import { rateLimit, RateLimitExceededError } from "../rate-limit";
 import {
   businessLocalDate,
@@ -19,6 +25,11 @@ const slugSchema = z
 const slotRequestSchema = z.object({
   slug: slugSchema,
   serviceId: z.string().cuid(),
+  addonIds: z
+    .array(z.string().cuid())
+    .max(6)
+    .default([])
+    .transform((ids) => [...new Set(ids)].sort()),
   from: z.iso.datetime({ offset: true }),
   to: z.iso.datetime({ offset: true }),
   localDate: z.iso.date().optional(),
@@ -26,11 +37,17 @@ const slotRequestSchema = z.object({
 const bookingSchema = z.object({
   slug: slugSchema,
   serviceId: z.string().cuid(),
+  addonIds: z
+    .array(z.string().cuid())
+    .max(6)
+    .default([])
+    .transform((ids) => [...new Set(ids)].sort()),
   slotId: z.string().regex(/^[0-9a-f]{64}$/),
   startsAt: z.iso.datetime({ offset: true }),
   idempotencyKey: z.uuid(),
   name: z.string().trim().min(2).max(100),
   email: z.email().max(254).trim().toLowerCase(),
+  emailOptIn: z.boolean().default(false),
   phone: z
     .string()
     .trim()
@@ -48,9 +65,12 @@ function slotId(
   serviceId: string,
   staffId: string,
   startsAt: Date,
+  addonIds: string[] = [],
 ) {
   return createHmac("sha256", getEnv().NEXTAUTH_SECRET)
-    .update(`${businessId}:${serviceId}:${staffId}:${startsAt.toISOString()}`)
+    .update(
+      `${businessId}:${serviceId}:${staffId}:${startsAt.toISOString()}:${addonIds.join(",")}`,
+    )
     .digest("hex");
 }
 
@@ -65,54 +85,113 @@ function payloadHash(input: BookingInput) {
         input.name,
         input.email,
         input.phone,
+        input.addonIds,
+        input.emailOptIn,
       ]),
     )
     .digest("hex");
 }
 
+async function readCatalog(
+  client: Prisma.TransactionClient,
+  businessId: string,
+  serviceId: string,
+  addonIds: string[],
+) {
+  const service = await client.service.findFirst({
+    where: {
+      id: serviceId,
+      businessId,
+      active: true,
+      kind: { in: ["SERVICE", "PACKAGE"] },
+    },
+    include: {
+      components: { where: { businessId }, include: { component: true } },
+      staff: { where: { businessId }, select: { staffId: true } },
+    },
+  });
+  if (!service) return null;
+  const addons = addonIds.length
+    ? await client.service.findMany({
+        where: {
+          businessId,
+          id: { in: addonIds },
+          active: true,
+          kind: "ADDON",
+        },
+        orderBy: { id: "asc" },
+      })
+    : [];
+  if (addons.length !== addonIds.length) return null;
+  return {
+    ...service,
+    ...quoteCatalog(service, addons, service.components),
+    bufferBeforeMinutes: Math.max(
+      service.bufferBeforeMinutes,
+      ...addons.map((a) => a.bufferBeforeMinutes),
+    ),
+    bufferAfterMinutes: Math.max(
+      service.bufferAfterMinutes,
+      ...addons.map((a) => a.bufferAfterMinutes),
+    ),
+  };
+}
 async function schedule(
   client: Prisma.TransactionClient,
   businessId: string,
   serviceId: string,
   from: Date,
   to: Date,
+  addonIds: string[] = [],
 ) {
-  const service = await client.service.findFirst({
-    where: { id: serviceId, businessId, active: true },
+  const catalog = await readCatalog(client, businessId, serviceId, addonIds);
+  if (!catalog) return null;
+  const margin = 180 * 60000;
+  const staff = await client.staff.findMany({
+    where: {
+      businessId,
+      active: true,
+      AND: [serviceId, ...addonIds].map((id) => ({
+        services: { some: { businessId, serviceId: id } },
+      })),
+    },
     select: {
       id: true,
-      durationMinutes: true,
-      price: true,
-      staff: {
-        where: { staff: { active: true } },
-        select: {
-          staff: {
-            select: {
-              id: true,
-              name: true,
-              availability: true,
-              exceptions: {
-                where: {
-                  unavailable: true,
-                  startsAt: { lt: to },
-                  endsAt: { gt: from },
-                },
-              },
-              appointments: {
-                where: {
-                  status: { not: "CANCELLED" },
-                  startsAt: { lt: to },
-                  endsAt: { gt: from },
-                },
-                select: { startsAt: true, endsAt: true },
-              },
-            },
-          },
+      name: true,
+      bufferBeforeMinutes: true,
+      bufferAfterMinutes: true,
+      availability: { where: { businessId } },
+      exceptions: {
+        where: {
+          businessId,
+          unavailable: true,
+          startsAt: { lt: new Date(to.getTime() + margin) },
+          endsAt: { gt: new Date(from.getTime() - margin) },
         },
+      },
+      appointments: {
+        where: {
+          businessId,
+          status: { not: "CANCELLED" },
+          occupiedStartsAt: { lt: new Date(to.getTime() + margin) },
+          occupiedEndsAt: { gt: new Date(from.getTime() - margin) },
+        },
+        select: { occupiedStartsAt: true, occupiedEndsAt: true },
       },
     },
   });
-  return service;
+  return {
+    ...catalog,
+    staff: staff.map((row) => ({
+      staff: {
+        ...row,
+        appointments: row.appointments.map((a) => ({
+          startsAt: a.occupiedStartsAt,
+          endsAt: a.occupiedEndsAt,
+        })),
+      },
+    })),
+  };
 }
 
 export async function getPublicSlots(input: unknown, clientId: string) {
@@ -120,7 +199,7 @@ export async function getPublicSlots(input: unknown, clientId: string) {
   const parsed = slotRequestSchema.safeParse(input);
   if (!parsed.success)
     return { error: "Choose a valid service and date range." };
-  const { slug, serviceId } = parsed.data;
+  const { slug, serviceId, addonIds } = parsed.data;
   const from = new Date(parsed.data.from);
   const to = new Date(parsed.data.to);
   const now = new Date();
@@ -128,7 +207,7 @@ export async function getPublicSlots(input: unknown, clientId: string) {
     from.getTime() < now.getTime() - 60_000 ||
     to <= from ||
     to.getTime() - from.getTime() > 7 * 86400_000 ||
-    to.getTime() > now.getTime() + 60 * 86400_000
+    to.getTime() > now.getTime() + 181 * 86400_000
   )
     return { error: "Choose up to seven days within the next 60 days." };
   try {
@@ -136,7 +215,7 @@ export async function getPublicSlots(input: unknown, clientId: string) {
     await rateLimit(`booking-slots:client:${clientId}`, 30, 60);
     const business = await db().business.findUnique({
       where: { slug },
-      select: { id: true, timezone: true },
+      select: { id: true, timezone: true, ...policySelection },
     });
     if (!business) return { error: "Service is unavailable." };
     const service = await schedule(
@@ -145,6 +224,7 @@ export async function getPublicSlots(input: unknown, clientId: string) {
       serviceId,
       from < now ? now : from,
       to,
+      addonIds,
     );
     if (!service) return { error: "Service is unavailable." };
     const slots = service.staff
@@ -154,12 +234,22 @@ export async function getPublicSlots(input: unknown, clientId: string) {
           to,
           now,
           durationMinutes: service.durationMinutes,
+          bookingLeadMinutes: business.bookingLeadMinutes,
+          bookingHorizonDays: business.bookingHorizonDays,
+          bufferBeforeMinutes: Math.max(
+            service.bufferBeforeMinutes,
+            staff.bufferBeforeMinutes,
+          ),
+          bufferAfterMinutes: Math.max(
+            service.bufferAfterMinutes,
+            staff.bufferAfterMinutes,
+          ),
           timezone: business.timezone,
           rules: staff.availability,
           exceptions: staff.exceptions,
           appointments: staff.appointments,
         }).map(({ startsAt, endsAt }) => ({
-          id: slotId(business.id, service.id, staff.id, startsAt),
+          id: slotId(business.id, service.id, staff.id, startsAt, addonIds),
           startsAt: startsAt.toISOString(),
           endsAt: endsAt.toISOString(),
           staffName: staff.name,
@@ -196,7 +286,7 @@ export async function createPublicBooking(input: unknown, clientId: string) {
     await rateLimit(`public-booking-create:${data.email}`, 5, 3600);
     const business = await db().business.findUnique({
       where: { slug: data.slug },
-      select: { id: true, timezone: true, currency: true },
+      select: { id: true, timezone: true, currency: true, ...policySelection },
     });
     if (!business) return { error: "Service is unavailable." };
     const existing = await db().bookingRequest.findUnique({
@@ -216,11 +306,8 @@ export async function createPublicBooking(input: unknown, clientId: string) {
           };
     const now = new Date();
     const from = new Date(data.startsAt);
-    if (
-      from.getTime() < now.getTime() + 60 * 60_000 ||
-      from.getTime() > now.getTime() + 60 * 86400_000
-    )
-      return { error: "Choose a time within the next 60 days." };
+    if (!inBookingWindow(from, now, business))
+      return { error: "Choose a time within this business's booking policy." };
     const result = await db().$transaction(
       async (tx) => {
         // Serialize identical requests before availability checks. A second caller
@@ -239,26 +326,42 @@ export async function createPublicBooking(input: unknown, clientId: string) {
           return replay.appointmentId;
         }
         const lockedBusiness = await tx.$queryRaw<
-          { timezone: string; currency: string }[]
+          {
+            timezone: string;
+            currency: string;
+            bookingLeadMinutes: number;
+            bookingHorizonDays: number;
+          }[]
         >`
-        SELECT "timezone", "currency" FROM "Business" WHERE "id" = ${business.id} AND "slug" = ${data.slug} FOR SHARE
+        SELECT "timezone", "currency", "bookingLeadMinutes", "bookingHorizonDays" FROM "Business" WHERE "id" = ${business.id} AND "slug" = ${data.slug} FOR SHARE
       `;
         if (!lockedBusiness[0]) throw new BookingUnavailable();
         const lockedService = await tx.$queryRaw<{ id: string }[]>`
         SELECT "id" FROM "Service" WHERE "businessId" = ${business.id} AND "id" = ${data.serviceId} FOR SHARE
       `;
         if (!lockedService.length) throw new BookingUnavailable();
-        const selectedService = await tx.service.findFirst({
-          where: { id: data.serviceId, businessId: business.id, active: true },
-          select: {
-            id: true,
-            durationMinutes: true,
-            staff: {
-              where: { businessId: business.id },
-              select: { staffId: true },
-            },
-          },
-        });
+        const preview = await readCatalog(
+          tx,
+          business.id,
+          data.serviceId,
+          data.addonIds,
+        );
+        if (!preview) throw new BookingUnavailable();
+        const catalogIds = [
+          ...new Set([
+            data.serviceId,
+            ...data.addonIds,
+            ...preview.components.map((c) => c.componentId),
+          ]),
+        ].sort();
+        for (const id of catalogIds)
+          await tx.$queryRaw`SELECT "id" FROM "Service" WHERE "businessId"=${business.id} AND "id"=${id} FOR SHARE`;
+        const selectedService = await readCatalog(
+          tx,
+          business.id,
+          data.serviceId,
+          data.addonIds,
+        );
         if (!selectedService) throw new BookingUnavailable();
         const to = new Date(
           from.getTime() + selectedService.durationMinutes * 60_000,
@@ -268,8 +371,13 @@ export async function createPublicBooking(input: unknown, clientId: string) {
         // transaction without providing the authoritative availability check.
         for (const { staffId } of selectedService.staff) {
           if (
-            slotId(business.id, selectedService.id, staffId, from) !==
-            data.slotId
+            slotId(
+              business.id,
+              selectedService.id,
+              staffId,
+              from,
+              data.addonIds,
+            ) !== data.slotId
           )
             continue;
           const chosen = { startsAt: from, endsAt: to };
@@ -281,6 +389,7 @@ export async function createPublicBooking(input: unknown, clientId: string) {
             data.serviceId,
             chosen.startsAt,
             chosen.endsAt,
+            data.addonIds,
           );
           const current = latest?.staff.find(
             (row) => row.staff.id === staffId,
@@ -288,12 +397,21 @@ export async function createPublicBooking(input: unknown, clientId: string) {
           if (
             !latest ||
             !current ||
+            !inBookingWindow(from, new Date(), lockedBusiness[0]) ||
             !isBookableInterval({
               ...chosen,
               timezone: lockedBusiness[0].timezone,
               rules: current.availability,
               exceptions: current.exceptions,
               appointments: current.appointments,
+              bufferBeforeMinutes: Math.max(
+                latest.bufferBeforeMinutes,
+                current.bufferBeforeMinutes,
+              ),
+              bufferAfterMinutes: Math.max(
+                latest.bufferAfterMinutes,
+                current.bufferAfterMinutes,
+              ),
             })
           )
             throw new BookingUnavailable();
@@ -303,6 +421,7 @@ export async function createPublicBooking(input: unknown, clientId: string) {
               name: data.name,
               email: data.email,
               phone: data.phone || null,
+              appointmentEmailOptIn: data.emailOptIn,
             },
           });
           const appointment = await tx.appointment.create({
@@ -315,6 +434,16 @@ export async function createPublicBooking(input: unknown, clientId: string) {
               endsAt: chosen.endsAt,
               price: latest.price,
               currency: lockedBusiness[0].currency,
+              serviceNameSnapshot: latest.name,
+              catalogSnapshot: latest.snapshot,
+              bufferBeforeMinutes: Math.max(
+                latest.bufferBeforeMinutes,
+                current.bufferBeforeMinutes,
+              ),
+              bufferAfterMinutes: Math.max(
+                latest.bufferAfterMinutes,
+                current.bufferAfterMinutes,
+              ),
               status: "CONFIRMED",
             },
           });
@@ -326,13 +455,14 @@ export async function createPublicBooking(input: unknown, clientId: string) {
               appointmentId: appointment.id,
             },
           });
-          await tx.auditLog.create({
+          const event = await tx.auditLog.create({
             data: {
               businessId: business.id,
               action: "appointment.booked",
               entityId: appointment.id,
             },
           });
+          await enqueueAppointmentNotifications(tx, business.id, appointment.id, "CONFIRMED", event.id);
           return appointment.id;
         }
         throw new BookingUnavailable();
